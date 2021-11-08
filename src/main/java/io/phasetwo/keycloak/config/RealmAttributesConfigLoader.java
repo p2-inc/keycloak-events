@@ -41,12 +41,15 @@ public class RealmAttributesConfigLoader {
 
   public static List<String> loadConfigurations(
       KeycloakSession session, String realm, String providerId) {
+    log.debugf(
+        "loading configurations for realm=%s, provider=%s. using query %s",
+        realm, providerId, getKey(providerId));
     EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
     TypedQuery<RealmAttributeEntity> query =
         em.createQuery(
-            "SELECT ra FROM RealmAttributeEntity ra WHERE ra.name LIKE ':name%' ORDER BY ra.name",
+            "SELECT ra FROM RealmAttributeEntity ra WHERE ra.name LIKE :name ORDER BY ra.name",
             RealmAttributeEntity.class);
-    query.setParameter("name", getKey(providerId));
+    query.setParameter("name", "" + getKey(providerId) + "%");
     return query.getResultStream().map(RealmAttributeEntity::getValue).collect(Collectors.toList());
   }
 

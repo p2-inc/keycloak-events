@@ -2,5 +2,7 @@ target/
 *~
 *.DS_Store
 tmp/*
+data/*
 dependency-reduced-pom.xml
 .classpath
+NOTES

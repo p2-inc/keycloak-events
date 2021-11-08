@@ -48,16 +48,12 @@ public class MultiEventListenerProvider implements EventListenerProvider {
     try {
       if (async) exec.submit(task);
       else task.run();
+      task.run();
     } catch (Exception e) {
       log.warn("Problem running EventListenerProvider", e);
     }
   }
 
   @Override
-  public void close() {
-    try {
-      if (exec != null) exec.shutdown();
-    } catch (Exception e) {
-    }
-  }
+  public void close() {}
 }

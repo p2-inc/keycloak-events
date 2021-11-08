@@ -38,6 +38,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
 
   @Override
   public void onEvent(Event event) {
+    log.debugf("run event in js\n%s", config.get(SCRIPT_CODE).toString());
     InvocableScriptAdapter invocableScriptAdapter =
         getInvocableScriptAdapter(
             event.getRealmId(),
@@ -53,6 +54,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
 
   @Override
   public void onEvent(AdminEvent event, boolean b) {
+    log.debugf("run admin event in js\n%s", config.get(SCRIPT_CODE).toString());
     InvocableScriptAdapter invocableScriptAdapter =
         getInvocableScriptAdapter(
             event.getRealmId(),
@@ -77,9 +79,10 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
       return;
     }
     try {
+      log.debugf("Invoking script function %s", functionName);
       invocableScriptAdapter.invokeFunction(functionName, args);
     } catch (ScriptExecutionException e) {
-      log.error(e);
+      log.error("Error in script execution", e);
     }
   }
 

@@ -23,6 +23,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak</main.java.package>
     <junit.version>4.13.2</junit.version>
+    <!-- <keycloak.version>15.0.2.redhat-00001</keycloak.version> -->
     <keycloak.version>15.0.2</keycloak.version>
     <lombok.version>1.18.12</lombok.version>
     <auto-service.version>1.0-rc7</auto-service.version>
@@ -33,24 +34,48 @@
     <connection>scm:git:git@github.com:p2-inc/keycloak-events.git</connection>
   </scm>
 
+  <!--
+  <repositories>
+    <repository>
+      <id>redhat-ga</id>
+      <name>Redhat GA</name>
+      <url>https://maven.repository.redhat.com/ga/</url>
+    </repository>
+  </repositories>
+  -->
+  
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-	<version>3.2.0</version>
+        <artifactId>maven-shade-plugin</artifactId>
+	<version>3.2.4</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
         <configuration>
-          <archive>
-            <!-- This is required since we need to add the jboss module references
-                 to the resulting jar -->
-            <manifestEntries>
-              <!-- Adding explicit dependencies to avoid class-loading issues at runtime -->
-              <Dependencies>
-              <![CDATA[org.keycloak.keycloak-common,org.keycloak.keycloak-core,org.keycloak.keycloak-server-spi,org.keycloak.keycloak-server-spi-private,org.apache.httpcomponents,org.keycloak.keycloak-services,org.keycloak.keycloak-saml-core,org.keycloak.keycloak-saml-core-public,org.jboss.logging,javax.api,javax.jms.api,javax.transaction.api,com.fasterxml.jackson.core.jackson-core,com.fasterxml.jackson.core.jackson-annotations,com.fasterxml.jackson.core.jackson-databind,com.google.guava]]></Dependencies>
-            </manifestEntries>
-          </archive>
-        </configuration>
+	  <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+	    </filter>
+          </filters>
+	  <transformers>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+              <manifestEntries>
+		<Dependencies><![CDATA[org.keycloak.keycloak-common,org.keycloak.keycloak-core,org.keycloak.keycloak-server-spi,org.keycloak.keycloak-server-spi-private,org.apache.httpcomponents,org.keycloak.keycloak-services,org.keycloak.keycloak-saml-core,org.keycloak.keycloak-saml-core-public,org.jboss.logging,javax.api,javax.jms.api,javax.transaction.api,com.fasterxml.jackson.core.jackson-core,com.fasterxml.jackson.core.jackson-annotations,com.fasterxml.jackson.core.jackson-databind,com.google.guava]]></Dependencies>
+              </manifestEntries>
+            </transformer>
+          </transformers>
+	</configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -317,7 +342,7 @@
     <dependency>
       <groupId>com.github.xgp</groupId>
       <artifactId>kitchen-sink</artifactId>
-      <version>0.1-SNAPSHOT</version>
+      <version>0.1</version>
     </dependency>
 
     <!-- testing -->
@@ -327,5 +352,13 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <!--
+    <dependency>
+      <groupId>org.keycloak</groupId>
+      <artifactId>keycloak-testsuite-utils</artifactId>
+      <version>${keycloak.version}</version>
+      <scope>test</scope>
+    </dependency>
+    -->
   </dependencies>
 </project>

@@ -4,7 +4,7 @@ Useful Keycloak `EventListenerProvider` implementations and utilities.
 
 - [Generic script event listener](#script)
 - [Event emitter to send events to an HTTP endpoint](#http-sender)
-- [A mechanism for storing event listener configurations as realm attributes](#adding-configuration-to-your-eventlistenerprovider)
+- [A mechanism for retrieving event listener configurations from realm attributes](#adding-configuration-to-your-eventlistenerprovider)
 - [A mechanism for running multiple event listeners of the same type with different configurations](#enabling-running-multiple-eventlistenerprovider-instances-of-the-same-type)
 - [Base classes for a User added/removed listener](#user-change-listener)
 
@@ -18,7 +18,7 @@ The maven build uses the shade plugin to package a fat-jar with all dependencies
 
 ## Use
 
-The EventListenerProvider implementations in this library rely on two utilities packaged within.
+The `EventListenerProvider` implementations in this library rely on two utilities packaged within.
 1. The first is that configuration is loaded from Realm attributes. This means that you can update the configuration for these implementations at runtime by either writing directly to the `realm_attributes` table or by calling the [Realm Update](https://www.keycloak.org/docs-api/15.0/rest-api/index.html#_updaterealm) method. Attribute keys are `_providerConfig.<provider_id>.<optional:N>`, and the configurations are stored in the value field as JSON. Currently only single depth JSON objects are supported.
 2. The optional `N` value in the key is relevant to the second important utility. The `EventListenerProviderFactory` implementations are all subclasses of `MultiEventListenerProviderFactory`, which enables multiple `EventListenerProvider` instances of the same type to run with different configurations. This is a facility that is not currently available in Keycloak, although some tickets and features in the future Admin UI indicate that it is coming soon.
 
@@ -62,7 +62,7 @@ Configuration values:
 | -----| -------- | ------- | ----------- |
 | `targetUri` | Y |  | The URI to send the event payload |
 | `sharedSecret` | N |  | The shared secret value to use for HMAC signing |
-| `retry` | N | false | Should it use exponentail backoff to retry on non 2xx response |
+| `retry` | N | false | Should it use exponential backoff to retry on non 2xx response |
 | `backoffInitialInterval` | N | 500 | Initial interval value in milliseconds |
 | `backoffMaxElapsedTime` | N | 900000 | Maximum elapsed time in milliseconds |
 | `backoffMaxInterval` | N | 60000 | Maximum back off time in milliseconds |
@@ -82,6 +82,8 @@ Configuration values:
 ### User change listener
 
 This provides a base class for the ever-requested "do something when a user is added or removed". It listens for an admin user creation event, a user registration event to detect user adds, and uses the internal `ProviderEvent` `UserModel.UserRemovedEvent` to detect user removals. This does nothing on it's own, but must be subclassed with your `onUserAdded`/`onUserRemoved` implementation.
+
+Please note that this has not been tested with users added via Identity/Federated Providers, and it may not catch the appropriate events for those. There is future work to verify that this does/not work in those cases, and potentially implement a wrapper to the `UserStorageProvider` which would correctly intercept those events.
 
 For example:
 ```java
