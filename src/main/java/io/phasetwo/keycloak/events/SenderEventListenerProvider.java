@@ -97,6 +97,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
           try {
             send(task);
           } catch (SenderException | IOException e) {
+            log.warn("retryable exception", e);
             if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
             long backOffTime = task.getBackOff().nextBackOffMillis();
             if (backOffTime == BackOff.STOP) return;
