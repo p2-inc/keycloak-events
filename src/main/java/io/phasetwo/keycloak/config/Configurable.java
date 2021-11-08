@@ -5,6 +5,12 @@ import java.util.Map;
 public interface Configurable {
   void setConfig(Map<String, Object> config);
 
+  default String getOr(Map<String, Object> config, String key, String defaultValue) {
+    Object o = config.get(key);
+    if (o != null) return o.toString();
+    else return defaultValue;
+  }
+
   default boolean getBooleanOr(Map<String, Object> config, String key, boolean defaultValue) {
     Object o = config.get(key);
     if (o != null) {
