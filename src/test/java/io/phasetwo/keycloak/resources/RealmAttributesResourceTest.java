@@ -1,0 +1,139 @@
+package io.phasetwo.keycloak.resources;
+
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
+import org.junit.Rule;
+import org.junit.Test;
+import org.keycloak.admin.client.Keycloak;
+import io.phasetwo.keycloak.KeycloakSuite;
+import org.keycloak.representations.idm.RealmRepresentation;
+import org.keycloak.broker.provider.util.SimpleHttp;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
+import com.fasterxml.jackson.core.type.TypeReference;
+import lombok.extern.jbosslog.JBossLog;
+import java.util.Map;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import java.net.URLEncoder;
+
+
+@JBossLog
+public class RealmAttributesResourceTest {
+
+  @ClassRule public static KeycloakSuite server = KeycloakSuite.SERVER;
+
+  CloseableHttpClient httpClient = HttpClients.createDefault();
+
+  String baseUrl() {
+    return server.getAuthUrl() + "/realms/master/attributes";
+  }
+
+  String urlencode(String u) {
+    try {
+      return URLEncoder.encode(u, "UTF-8");
+    } catch (Exception e) {
+      return "";
+    }
+  }
+  
+  @Test public void testGetAttributes() throws Exception {
+    Keycloak keycloak = server.client();
+    SimpleHttp.Response response = SimpleHttp.doGet(baseUrl(), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    Map<String,RealmAttributeRepresentation> attributes = response.asJson(new TypeReference<Map<String, RealmAttributeRepresentation>>() {});
+    assertNotNull(attributes);
+    assertTrue(attributes.size() > 0);
+  }
+  
+  @Test public void testAddGetAttribute() throws Exception {
+    Keycloak keycloak = server.client();
+
+    String key = "_providerConfig.ext-event-script.0";
+    String value = "{ \"scriptCode\": \"function onEvent(event) {\\\n  LOG.info(event.type + \\\" in realm \\\" + realm.name + \\\" for user \\\" + user.username);\\\n}\\\n\\\nfunction onAdminEvent(event, representation) {\\\n  LOG.info(event.operationType + \\\" on \\\" + event.resourceType + \\\" in realm \\\" + realm.name);\\\n}\\\n\", \"scriptName\": \"test-debug\", \"scriptDescription\": \"debugger output\" }";
+    
+    RealmAttributeRepresentation rep = new RealmAttributeRepresentation();
+    rep.setRealm("master");
+    rep.setName(key);
+    rep.setValue(value);
+    SimpleHttp.Response response = SimpleHttp.doPost(baseUrl(), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).json(rep).asResponse();
+    assertThat(response.getStatus(), is(201));
+    assertThat(response.getFirstHeader("Location"), containsString(key));
+
+    response = SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(200));
+    rep = response.asJson(new TypeReference<RealmAttributeRepresentation>() {});
+    assertNotNull(rep);
+    assertThat(rep.getRealm(), is("master"));
+    assertThat(rep.getName(), is(key));
+    assertThat(rep.getValue(), is(value));
+  }
+
+  @Test public void testUpdateGetAttribute() throws Exception {
+    Keycloak keycloak = server.client();
+
+    String key = "_providerConfig.test.1";
+    String value0 = "foo";
+    String value1 = "bar";
+    
+    RealmAttributeRepresentation rep = new RealmAttributeRepresentation();
+    rep.setRealm("master");
+    rep.setName(key);
+    rep.setValue(value0);
+    SimpleHttp.Response response = SimpleHttp.doPost(baseUrl(), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).json(rep).asResponse();
+    assertThat(response.getStatus(), is(201));
+    assertThat(response.getFirstHeader("Location"), containsString(key));
+
+    response = SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(200));
+    rep = response.asJson(new TypeReference<RealmAttributeRepresentation>() {});
+    assertNotNull(rep);
+    assertThat(rep.getRealm(), is("master"));
+    assertThat(rep.getName(), is(key));
+    assertThat(rep.getValue(), is(value0));
+
+    rep.setValue(value1);
+    response = SimpleHttp.doPut(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).json(rep).asResponse();
+    assertThat(response.getStatus(), is(204));
+    
+    response = SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(200));
+    rep = response.asJson(new TypeReference<RealmAttributeRepresentation>() {});
+    assertNotNull(rep);
+    assertThat(rep.getRealm(), is("master"));
+    assertThat(rep.getName(), is(key));
+    assertThat(rep.getValue(), is(value1));
+  }
+
+  @Test public void testRemoveAttribute() throws Exception {
+    Keycloak keycloak = server.client();
+
+    String key = "_providerConfig.test.2";
+    String value0 = "foo";
+    
+    RealmAttributeRepresentation rep = new RealmAttributeRepresentation();
+    rep.setRealm("master");
+    rep.setName(key);
+    rep.setValue(value0);
+    SimpleHttp.Response response = SimpleHttp.doPost(baseUrl(), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).json(rep).asResponse();
+    assertThat(response.getStatus(), is(201));
+    assertThat(response.getFirstHeader("Location"), containsString(key));
+
+    response = SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(200));
+    rep = response.asJson(new TypeReference<RealmAttributeRepresentation>() {});
+    assertNotNull(rep);
+    assertThat(rep.getRealm(), is("master"));
+    assertThat(rep.getName(), is(key));
+    assertThat(rep.getValue(), is(value0));
+
+    response = SimpleHttp.doDelete(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(204));
+    
+    response = SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient).auth(keycloak.tokenManager().getAccessTokenString()).asResponse();
+    assertThat(response.getStatus(), is(404));
+  }
+
+}

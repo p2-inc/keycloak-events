@@ -352,13 +352,11 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
-    <!--
-    <dependency>
+    <dependency> <!-- if you're getting a missing dependency error here, you need to install keycloak from source locally, as this never hits maven central -->
       <groupId>org.keycloak</groupId>
       <artifactId>keycloak-testsuite-utils</artifactId>
       <version>${keycloak.version}</version>
       <scope>test</scope>
     </dependency>
-    -->
   </dependencies>
 </project>

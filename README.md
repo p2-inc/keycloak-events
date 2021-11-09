@@ -49,7 +49,7 @@ function onEvent(event) {
 }
 
 function onAdminEvent(event, representation) {
-  LOG.info(event.operationType + " on " + event.resourceType + " in realm " + realm.name");
+  LOG.info(event.operationType + " on " + event.resourceType + " in realm " + realm.name);
 }
 ```
 

@@ -87,7 +87,7 @@ public class RealmAttributesResource extends AbstractAdminResource {
       throw new BadRequestException("keys must match");
     }
     realm.setAttribute(rep.getName(), rep.getValue());
-    return Response.accepted().build();
+    return Response.noContent().build();
   }
 
   @DELETE
@@ -96,7 +96,7 @@ public class RealmAttributesResource extends AbstractAdminResource {
     if (!permissions.realm().canManageRealm())
       throw new ForbiddenException("remove attribute requires manage-realm");
     realm.removeAttribute(key);
-    return Response.accepted().build();
+    return Response.noContent().build();
   }
 
   protected void validateRealmAttributeRepresentation(RealmAttributeRepresentation rep) {

@@ -54,7 +54,7 @@ public abstract class UserEventListenerProviderFactory
                   @Override
                   protected void commitImpl() {
                     RealmModel realm = session.realms().getRealm(realmId);
-                    UserModel user = session.users().getUserById(userId, realm);
+                    UserModel user = session.users().getUserById(realm, userId);
                     getUserChangedHandler().onUserAdded(session, realm, user);
                   }
 
