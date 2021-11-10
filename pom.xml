@@ -3,7 +3,7 @@
   <groupId>io.phasetwo.keycloak</groupId>
   <artifactId>keycloak-events</artifactId>
   <packaging>jar</packaging>
-  <version>0.2-SNAPSHOT</version>
+  <version>0.1-SNAPSHOT</version>
 
   <parent>
     <groupId>com.github.xgp</groupId>
@@ -32,7 +32,6 @@
   <scm>
     <url>https://github.com/p2-inc/keycloak-events</url>
     <connection>scm:git:git@github.com:p2-inc/keycloak-events.git</connection>
-    <tag>HEAD</tag>
   </scm>
 
   <!--
@@ -190,7 +189,7 @@
             </systemProperty>
             <systemProperty>
               <key>keycloak.connectionsJpa.password</key>
-              <value />
+              <value></value>
             </systemProperty>
             <systemProperty>
               <key>profile</key>
