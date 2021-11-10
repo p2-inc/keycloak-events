@@ -21,7 +21,7 @@
   <properties>
     <java.version>1.8</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <main.java.package>io.phasetwo.keycloak</main.java.package>
+    <main.java.package>io.phasetwo.keycloak.events</main.java.package>
     <junit.version>4.13.2</junit.version>
     <!-- <keycloak.version>15.0.2.redhat-00001</keycloak.version> -->
     <keycloak.version>15.0.2</keycloak.version>
@@ -71,7 +71,7 @@
 	  <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
               <manifestEntries>
-		<Dependencies><![CDATA[org.keycloak.keycloak-common,org.keycloak.keycloak-core,org.keycloak.keycloak-server-spi,org.keycloak.keycloak-server-spi-private,org.apache.httpcomponents,org.keycloak.keycloak-services,org.keycloak.keycloak-saml-core,org.keycloak.keycloak-saml-core-public,org.jboss.logging,javax.api,javax.jms.api,javax.transaction.api,com.fasterxml.jackson.core.jackson-core,com.fasterxml.jackson.core.jackson-annotations,com.fasterxml.jackson.core.jackson-databind,com.google.guava]]></Dependencies>
+		<Dependencies><![CDATA[org.keycloak.keycloak-common,org.keycloak.keycloak-core,org.keycloak.keycloak-server-spi,org.keycloak.keycloak-server-spi-private,org.apache.httpcomponents,org.keycloak.keycloak-services,org.jboss.logging,javax.api,javax.jms.api,javax.transaction.api,com.fasterxml.jackson.core.jackson-core,com.fasterxml.jackson.core.jackson-annotations,com.fasterxml.jackson.core.jackson-databind,com.google.guava]]></Dependencies>
               </manifestEntries>
             </transformer>
           </transformers>
@@ -209,11 +209,11 @@
             </systemProperty>
             <systemProperty>
               <key>keycloak.product.name</key>
-              <value>plotly</value>
+              <value>p2</value>
             </systemProperty>
             <systemProperty>
               <key>product.name</key>
-              <value>plotly</value>
+              <value>p2</value>
             </systemProperty>
             <systemProperty>
               <key>product.version</key>

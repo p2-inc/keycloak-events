@@ -77,7 +77,7 @@ Configuration values:
 
 ### Enabling running multiple EventListenerProvider instances of the same type
 
-1. Extend the abstract class `MultiEventListenerProviderFactory`. Implement the abstract method `EventListenerProvider configure(KeycloakSession session, Map<String, Object> config)`, which is otherwise the same as the `create(...)` method, but also takes a config map. This **should not return a singleton**.
+1. Extend the abstract class `MultiEventListenerProviderFactory`. Implement the abstract method `EventListenerProvider configure(KeycloakSession session, Map<String, Object> config)`, which is otherwise the same as the `create(...)` method, but also takes a config map. This **should not return a singleton**. Take a look at the `ScriptEventListenerProviderFactory` and `HttpSenderEventListenerProviderFactory` as examples.
 
 ### User change listener
 
@@ -98,9 +98,9 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
   UserChangedHandler getUserChangedHandler() {
     return new UserChangedHandler() {
       @Override
-	  void onUserAdded(KeycloakSession session, RealmModel realm, UserModel user) {
+      void onUserAdded(KeycloakSession session, RealmModel realm, UserModel user) {
         log.infof("User %s added to Realm %s", user.getUsername(), realm.getName());
-	  }
+      }
 
       @Override
       void onUserRemoved(KeycloakSession session, RealmModel realm, UserModel user) {
