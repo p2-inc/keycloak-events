@@ -20,7 +20,7 @@ public class ScriptEventListenerProviderFactory extends MultiEventListenerProvid
 
   @Override
   protected boolean isAsync() {
-    return true;
+    return false;
   }
 
   @Override

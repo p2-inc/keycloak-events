@@ -47,4 +47,8 @@ public class HttpSenderEventListenerProviderFactory extends MultiEventListenerPr
       log.warn("Error in shutdown of scheduler", e);
     }
   }
+
+  protected boolean isAsync() {
+    return true;
+  }
 }

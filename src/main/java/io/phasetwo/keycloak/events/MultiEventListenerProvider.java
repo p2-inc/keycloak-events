@@ -16,6 +16,7 @@ public class MultiEventListenerProvider implements EventListenerProvider {
   private final List<EventListenerProvider> providers;
   private final boolean async;
   private final ExecutorService exec;
+  private RunnableTransaction runnableTrx;
 
   public MultiEventListenerProvider(
       KeycloakSession session,
@@ -26,6 +27,10 @@ public class MultiEventListenerProvider implements EventListenerProvider {
     this.providers = providers;
     this.async = async;
     this.exec = exec;
+    if (async) {
+      runnableTrx = new RunnableTransaction(exec);
+      session.getTransactionManager().enlistAfterCompletion(runnableTrx);
+    }
   }
 
   @Override
@@ -46,7 +51,7 @@ public class MultiEventListenerProvider implements EventListenerProvider {
 
   private void run(Runnable task) {
     try {
-      if (async) exec.submit(task);
+      if (async) runnableTrx.addRunnable(task);
       else task.run();
     } catch (Exception e) {
       log.warn("Problem running EventListenerProvider", e);
