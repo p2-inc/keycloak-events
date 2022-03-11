@@ -8,6 +8,7 @@ import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -21,53 +22,58 @@ import org.keycloak.models.utils.KeycloakModelUtils;
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
 
+  private static final String WEBHOOK_URI_ENV = "WEBHOOK_URI";
+  private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
+
   private final RealmModel realm;
   private final WebhookProvider webhooks;
+
+  private final String systemUri;
+  private final String systemSecret;
 
   public WebhookSenderEventListenerProvider(
       KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
     this.realm = session.getContext().getRealm();
     this.webhooks = session.getProvider(WebhookProvider.class);
+    // for system owner catch-all
+    this.systemUri = System.getenv(WEBHOOK_URI_ENV);
+    this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
   }
 
   @Override
   public void onEvent(Event event) {
-    webhooks
-        .getWebhooksStream(realm)
-        .filter(w -> w.isEnabled())
-        .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
-        .forEach(
-            w -> {
-              ExtendedAdminEvent customEvent =
-                  completeAdminEventAttributes(KeycloakModelUtils.generateId(), event);
-              if (!enabledFor(w, customEvent)) return;
-              SenderTask task = new SenderTask(customEvent, getBackOff());
-              task.getProperties().put("url", w.getUrl());
-              task.getProperties().put("secret", w.getSecret());
-              schedule(task, 0l, TimeUnit.MILLISECONDS);
-            });
+    onEvent(() -> completeAdminEventAttributes(KeycloakModelUtils.generateId(), event));
   }
 
   @Override
   public void onEvent(AdminEvent event, boolean b) {
+    onEvent(() -> completeAdminEventAttributes(KeycloakModelUtils.generateId(), event));
+  }
+
+  private void onEvent(Supplier<ExtendedAdminEvent> supplier) {
     webhooks
         .getWebhooksStream(realm)
         .filter(w -> w.isEnabled())
         .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
         .forEach(
             w -> {
-              ExtendedAdminEvent customEvent =
-                  completeAdminEventAttributes(KeycloakModelUtils.generateId(), event);
+              ExtendedAdminEvent customEvent = supplier.get();
               if (!enabledFor(w, customEvent)) return;
-              SenderTask task = new SenderTask(customEvent, getBackOff());
-              task.getProperties().put("url", w.getUrl());
-              task.getProperties().put("secret", w.getSecret());
-              schedule(task, 0l, TimeUnit.MILLISECONDS);
+              schedule(customEvent, w.getUrl(), w.getSecret());
             });
+    // for system owner catch-all
+    if (!Strings.isNullOrEmpty(systemUri)) schedule(supplier.get(), systemUri, systemSecret);
   }
 
-  protected boolean enabledFor(WebhookModel webhook, ExtendedAdminEvent customEvent) {
+  private void schedule(ExtendedAdminEvent customEvent, String url, String secret) {
+    SenderTask task = new SenderTask(customEvent, getBackOff());
+    task.getProperties().put("url", url);
+    task.getProperties().put("secret", secret);
+    schedule(task, 0l, TimeUnit.MILLISECONDS);
+  }
+
+  private boolean enabledFor(WebhookModel webhook, ExtendedAdminEvent customEvent) {
     String type = customEvent.getType();
     log.infof("Checking webhook enabled for %s [%s]", type, webhook.getEventTypes());
     for (String t : webhook.getEventTypes()) {
