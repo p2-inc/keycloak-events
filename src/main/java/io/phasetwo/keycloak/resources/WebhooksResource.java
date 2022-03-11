@@ -44,6 +44,7 @@ public class WebhooksResource extends AbstractAdminResource {
     WebhookRepresentation webhook = new WebhookRepresentation();
     webhook.setId(w.getId());
     webhook.setEnabled(w.isEnabled());
+    webhook.setUrl(w.getUrl());
     webhook.setCreatedBy(w.getCreatedBy().getId());
     webhook.setCreatedAt(w.getCreatedAt());
     webhook.setRealm(w.getRealm().getId());
@@ -121,6 +122,8 @@ public class WebhooksResource extends AbstractAdminResource {
   public Response removeWebhook(final @PathParam("id") String id) {
     if (!permissions.realm().canManageRealm())
       throw new ForbiddenException("remove webhook requires manage-realm");
+    getWebhook(id); // forces a not found if it doesn't exist
+    webhooks.removeWebhook(realm, id);
     return Response.noContent().build();
   }
 }

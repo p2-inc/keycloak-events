@@ -13,7 +13,7 @@ import org.keycloak.models.RealmModel;
 @AutoService(JpaEntityProviderFactory.class)
 public class WebhookEntityProviderFactory implements JpaEntityProviderFactory {
 
-  protected static final String ID = "webhook-entity-provider";
+  protected static final String ID = "ext-entity-webhook";
 
   @Override
   public JpaEntityProvider create(KeycloakSession session) {

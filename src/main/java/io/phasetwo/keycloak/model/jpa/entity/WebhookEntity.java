@@ -30,7 +30,7 @@ public class WebhookEntity {
   @Column(name = "URL", nullable = false)
   protected String url;
 
-  @Column(name = "SECRET", nullable = false)
+  @Column(name = "SECRET")
   protected String secret;
 
   @ElementCollection
