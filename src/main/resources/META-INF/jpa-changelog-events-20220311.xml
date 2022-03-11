@@ -1,0 +1,26 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+  <changeSet author="garth (generated)" id="202203111522-1">
+    <createTable tableName="WEBHOOK">
+      <column name="ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="URL" type="VARCHAR(2048)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="SECRET" type="VARCHAR(100)"/>
+      <column name="CREATED_AT" type="TIMESTAMP"/>
+      <column name="CREATED_BY_USER_ID" type="VARCHAR(36)"/>
+      <column name="REALM_ID" type="VARCHAR(36)"/>
+    </createTable>
+    <createTable tableName="WEBHOOK_EVENT_TYPES">
+      <column name="WEBHOOK_ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="VALUE" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <addForeignKeyConstraint baseColumnNames="WEBHOOK_ID" baseTableName="WEBHOOK_EVENT_TYPES" constraintName="FK_H84RSK1GFRPJGWMN21UPW149J" referencedColumnNames="ID" referencedTableName="WEBHOOK"/>
+  </changeSet>
+</databaseChangeLog>

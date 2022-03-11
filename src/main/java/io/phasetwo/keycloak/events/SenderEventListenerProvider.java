@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.events;
 
 import com.github.xgp.util.BackOff;
+import com.google.common.collect.Maps;
 import io.phasetwo.keycloak.config.Configurable;
 import java.io.IOException;
 import java.util.Map;
@@ -55,6 +56,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
   class SenderTask {
     private final Object event;
     private final BackOff backOff;
+    private Map<String, String> properties = Maps.newHashMap();
 
     public SenderTask(Object event, BackOff backOff) {
       this.event = event;
@@ -67,6 +69,10 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
 
     public BackOff getBackOff() {
       return this.backOff;
+    }
+
+    public Map<String, String> getProperties() {
+      return this.properties;
     }
   }
 
@@ -87,7 +93,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
     return BackOff.STOP_BACKOFF;
   }
 
-  void schedule(SenderTask task, long delay, TimeUnit unit) {
+  protected void schedule(SenderTask task, long delay, TimeUnit unit) {
     if (exec.isShutdown()) {
       log.warn("Task scheduled after shutdown initiated");
       return;

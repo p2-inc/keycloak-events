@@ -31,7 +31,7 @@
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
     <junit.version>4.13.2</junit.version>
     <keycloak.version>16.1.0</keycloak.version>
-    <lombok.version>1.18.12</lombok.version>
+    <lombok.version>1.18.22</lombok.version>
     <auto-service.version>1.0-rc7</auto-service.version>
     <ossrh.url>https://s01.oss.sonatype.org</ossrh.url>
   </properties>

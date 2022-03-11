@@ -7,6 +7,7 @@ Useful Keycloak `EventListenerProvider` implementations and utilities.
 - [A mechanism for retrieving event listener configurations from realm attributes](#adding-configuration-to-your-eventlistenerprovider)
 - [A mechanism for running multiple event listeners of the same type with different configurations](#enabling-running-multiple-eventlistenerprovider-instances-of-the-same-type)
 - [Base classes for a User added/removed listener](#user-change-listener)
+- [A unified event model with facility for subscribing to webhooks](#webhooks)
 
 ## Compatibility
 
@@ -112,3 +113,20 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 }
 ```
 
+### Webhooks
+
+This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/).
+
+#### Managing webhook subscriptions
+
+
+```json
+{
+  "url": "https://example.com/some/webhook",
+  "enabled": "true",
+  "secret": "ofj09saP4",
+  "enabled-events": [
+    "*"
+  ]
+}
+```	

@@ -54,9 +54,14 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   @Override
   void send(SenderTask task) throws SenderException, IOException {
-    SimpleHttp request = SimpleHttp.doPost(getTargetUri(), session).json(task.getEvent());
-    if (getSharedSecret() != null) {
-      request.header("X-Keycloak-Signature", hmacFor(task.getEvent()));
+    send(task, getTargetUri(), getSharedSecret());
+  }
+
+  protected void send(SenderTask task, String targetUri, String sharedSecret)
+      throws SenderException, IOException {
+    SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
+    if (sharedSecret != null) {
+      request.header("X-Keycloak-Signature", hmacFor(task.getEvent(), sharedSecret));
     }
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
@@ -66,10 +71,10 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     }
   }
 
-  private String hmacFor(Object o) {
+  protected String hmacFor(Object o, String sharedSecret) {
     try {
       String data = JsonSerialization.writeValueAsString(o);
-      return calculateHmacSha(data, getSharedSecret());
+      return calculateHmacSha(data, sharedSecret);
     } catch (Exception e) {
       log.warn("Unable to sign data", e);
     }
