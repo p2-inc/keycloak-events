@@ -117,16 +117,52 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 
 This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/).
 
+Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoffif there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed. 
+
 #### Managing webhook subscriptions
 
+Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-realm` and `manage-realm` permissions.
 
+| Path | Method | Payload | Returns | Description |
+| ---- | ------ | ------- | ------- | ----------- |
+| `/auth/realms/:realm/webhooks` | `GET` | | List of webhook objects | Get webhooks |
+| `/auth/realms/:realm/webhooks` | `POST` | Webhook object | `201` | Create webhook |
+| `/auth/realms/:realm/webhooks/:id` | `GET` | | Webhook object | Get webhook |
+| `/auth/realms/:realm/webhooks/:id` | `PUT` | Webhook object | `204` | Update webhook |
+| `/auth/realms/:realm/webhooks/:id` | `DELETE` | Webhook object | `204` | Delete webhook |
+
+The webhook object has this format:
 ```json
 {
-  "url": "https://example.com/some/webhook",
+  "id": "475cd2fd-3ca8-4c22-b5c8-c8b8927dcc10",
   "enabled": "true",
+  "url": "https://example.com/some/webhook",
   "secret": "ofj09saP4",
-  "enabled-events": [
+  "eventTypes": [
+    "*"
+  ],
+  "createdBy": "ff730b72-a421-4f6e-9e4e-7fc7f53bac88",
+  "createdAt": "2021-04-21T18:25:43-05:00"
+}
+```	
+
+For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+
+#### Example
+
+To create a webhook for all events on the `master` realm:
+
+```
+POST /auth/realms/master/webhooks
+
+{
+  "enabled": "true",
+  "url": "https://en6fowyrouz6q4o.m.pipedream.net",
+  "secret": "A3jt6D8lz",
+  "eventTypes": [
     "*"
   ]
 }
-```	
+```
+
+[Pipedream](https://pipedream.com/) is a great way to test your webhooks, and use the data to integrate with your other applications.

@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.events;
 
 import com.google.common.base.Strings;
+import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
@@ -35,10 +36,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     webhooks
         .getWebhooksStream(realm)
         .filter(w -> w.isEnabled())
+        .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
         .forEach(
             w -> {
               ExtendedAdminEvent customEvent =
                   completeAdminEventAttributes(KeycloakModelUtils.generateId(), event);
+              if (!enabledFor(w, customEvent)) return;
               SenderTask task = new SenderTask(customEvent, getBackOff());
               task.getProperties().put("url", w.getUrl());
               task.getProperties().put("secret", w.getSecret());
@@ -51,15 +54,30 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     webhooks
         .getWebhooksStream(realm)
         .filter(w -> w.isEnabled())
+        .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
         .forEach(
             w -> {
               ExtendedAdminEvent customEvent =
                   completeAdminEventAttributes(KeycloakModelUtils.generateId(), event);
+              if (!enabledFor(w, customEvent)) return;
               SenderTask task = new SenderTask(customEvent, getBackOff());
               task.getProperties().put("url", w.getUrl());
               task.getProperties().put("secret", w.getSecret());
               schedule(task, 0l, TimeUnit.MILLISECONDS);
             });
+  }
+
+  protected boolean enabledFor(WebhookModel webhook, ExtendedAdminEvent customEvent) {
+    String type = customEvent.getType();
+    log.infof("Checking webhook enabled for %s [%s]", type, webhook.getEventTypes());
+    for (String t : webhook.getEventTypes()) {
+      if ("*".equals(t)) return true;
+      if ("access.*".equals(t) && type.startsWith("access.")) return true;
+      if ("admin.*".equals(t) && type.startsWith("admin.")) return true;
+      if ("system.*".equals(t) && type.startsWith("system.")) return true;
+      if (t.equals(type)) return true;
+    }
+    return false;
   }
 
   @Override
