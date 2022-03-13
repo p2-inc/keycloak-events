@@ -44,6 +44,15 @@ public abstract class AbstractAdminResource {
     init();
   }
 
+  public void requireRole(String role) {
+    if (!hasRole(role))
+      throw new NotAuthorizedException(String.format("%s role is required", role));
+  }
+
+  public boolean hasRole(String role) {
+    return auth.hasAppRole(auth.getClient(), role);
+  }
+
   void init() {
     // override if your extending class needs additional setup;
   }

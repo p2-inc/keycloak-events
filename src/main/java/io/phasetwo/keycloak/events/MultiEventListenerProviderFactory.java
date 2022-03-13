@@ -15,7 +15,7 @@ public abstract class MultiEventListenerProviderFactory extends AbstractEventLis
     implements ConfigurationAware {
 
   @Override
-  public final MultiEventListenerProvider create(KeycloakSession session) {
+  public MultiEventListenerProvider create(KeycloakSession session) {
     ExecutorService exec =
         session.getProvider(ExecutorsProvider.class).getExecutor("multi-event-provider-threads");
     List<EventListenerProvider> providers =

@@ -237,10 +237,6 @@
               <key>keycloak.profile.feature.scripts</key>
               <value>enabled</value>
             </systemProperty>
-            <systemProperty>
-              <key>keycloak.profile.feature.scripts</key>
-              <value>enabled</value>
-            </systemProperty>
           </systemProperties>
 	</configuration>
         <dependencies>
@@ -341,6 +337,11 @@
       <groupId>com.github.xgp</groupId>
       <artifactId>kitchen-sink</artifactId>
       <version>0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.openjdk.nashorn</groupId>
+      <artifactId>nashorn-core</artifactId>
+      <version>15.3</version>
     </dependency>
 
     <!-- testing -->

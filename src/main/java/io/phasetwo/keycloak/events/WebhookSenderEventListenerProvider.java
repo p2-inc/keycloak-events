@@ -27,6 +27,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   private final RealmModel realm;
   private final WebhookProvider webhooks;
+  private final RunnableTransaction runnableTrx;
 
   private final String systemUri;
   private final String systemSecret;
@@ -36,6 +37,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     super(session, exec);
     this.realm = session.getContext().getRealm();
     this.webhooks = session.getProvider(WebhookProvider.class);
+    this.runnableTrx = new RunnableTransaction();
+    session.getTransactionManager().enlistAfterCompletion(runnableTrx);
     // for system owner catch-all
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
@@ -43,15 +46,31 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   @Override
   public void onEvent(Event event) {
-    onEvent(() -> completeAdminEventAttributes(KeycloakModelUtils.generateId(), event));
+    log.debugf("onEvent %s %s", event.getType(), event.getId());
+    ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
+    runnableTrx.addRunnable(() -> processEvent(customEvent));
   }
 
   @Override
-  public void onEvent(AdminEvent event, boolean b) {
-    onEvent(() -> completeAdminEventAttributes(KeycloakModelUtils.generateId(), event));
+  public void onEvent(AdminEvent adminEvent, boolean b) {
+    log.debugf(
+        "onEvent %s %s %s",
+        adminEvent.getOperationType(), adminEvent.getResourceType(), adminEvent.getResourcePath());
+    ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
+    runnableTrx.addRunnable(() -> processEvent(customEvent));
   }
 
-  private void onEvent(Supplier<ExtendedAdminEvent> supplier) {
+  /** Update the event with a unique uid */
+  public void processEvent(ExtendedAdminEvent customEvent) {
+    processEvent(
+        () -> {
+          customEvent.setUid(KeycloakModelUtils.generateId());
+          return customEvent;
+        });
+  }
+
+  /** Schedule dispatch to all webhooks and system */
+  private void processEvent(Supplier<ExtendedAdminEvent> supplier) {
     webhooks
         .getWebhooksStream(realm)
         .filter(w -> w.isEnabled())
@@ -63,7 +82,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
               schedule(customEvent, w.getUrl(), w.getSecret());
             });
     // for system owner catch-all
-    if (!Strings.isNullOrEmpty(systemUri)) schedule(supplier.get(), systemUri, systemSecret);
+    if (!Strings.isNullOrEmpty(systemUri)) {
+      schedule(supplier.get(), systemUri, systemSecret);
+    }
   }
 
   private void schedule(ExtendedAdminEvent customEvent, String url, String secret) {
@@ -73,9 +94,10 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     schedule(task, 0l, TimeUnit.MILLISECONDS);
   }
 
+  /** Check if the event type is enabled for this webhook */
   private boolean enabledFor(WebhookModel webhook, ExtendedAdminEvent customEvent) {
     String type = customEvent.getType();
-    log.infof("Checking webhook enabled for %s [%s]", type, webhook.getEventTypes());
+    log.debugf("Checking webhook enabled for %s [%s]", type, webhook.getEventTypes());
     for (String t : webhook.getEventTypes()) {
       if ("*".equals(t)) return true;
       if ("access.*".equals(t) && type.startsWith("access.")) return true;

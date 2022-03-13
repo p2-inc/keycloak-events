@@ -115,7 +115,7 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 
 ### Webhooks
 
-This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/).
+This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/). 
 
 Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoffif there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed. 
 
@@ -148,7 +148,7 @@ The webhook object has this format:
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
 
-#### Example
+##### Example
 
 To create a webhook for all events on the `master` realm:
 
@@ -166,3 +166,13 @@ POST /auth/realms/master/webhooks
 ```
 
 [Pipedream](https://pipedream.com/) is a great way to test your webhooks, and use the data to integrate with your other applications.
+
+#### Sending app events
+
+There is also a custom REST resource that allows publishing of arbitrary events. These are subsequently sent to the registered webhooks. In order to publish events, there is a new role `publish-events` which callers must have. 
+
+| Path | Method | Payload | Returns | Description |
+| ---- | ------ | ------- | ------- | ----------- |
+| `/auth/realms/:realm/events` | `POST` | Event object | `202 = Event received`<br/>`400 = Malformed event`<br/>`403 = API rate limit exceeded`<br/>`409 = Reserved event type` | Publish event |
+
+
