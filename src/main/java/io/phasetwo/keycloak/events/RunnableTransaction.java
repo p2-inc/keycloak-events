@@ -2,18 +2,15 @@ package io.phasetwo.keycloak.events;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.AbstractKeycloakTransaction;
 
 @JBossLog
 public class RunnableTransaction extends AbstractKeycloakTransaction {
 
-  private final ExecutorService exec;
-  private final List<Runnable> runnables;
+  protected final List<Runnable> runnables;
 
-  public RunnableTransaction(ExecutorService exec) {
-    this.exec = exec;
+  public RunnableTransaction() {
     this.runnables = new LinkedList<Runnable>();
   }
 
@@ -24,9 +21,16 @@ public class RunnableTransaction extends AbstractKeycloakTransaction {
   @Override
   protected void commitImpl() {
     try {
-      runnables.forEach(task -> exec.submit(task));
-    } catch (Exception e) {
-      log.warn("Problem running RunnableTransaction", e);
+      runnables.forEach(
+          task -> {
+            try {
+              task.run();
+            } catch (Exception e1) {
+              log.warn("Error running Runnable", e1);
+            }
+          });
+    } catch (Exception e2) {
+      log.warn("Error running RunnableTransaction", e2);
     }
   }
 

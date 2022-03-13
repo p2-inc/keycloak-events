@@ -7,6 +7,7 @@ Useful Keycloak `EventListenerProvider` implementations and utilities.
 - [A mechanism for retrieving event listener configurations from realm attributes](#adding-configuration-to-your-eventlistenerprovider)
 - [A mechanism for running multiple event listeners of the same type with different configurations](#enabling-running-multiple-eventlistenerprovider-instances-of-the-same-type)
 - [Base classes for a User added/removed listener](#user-change-listener)
+- [A unified event model with facility for subscribing to webhooks](#webhooks)
 
 ## Compatibility
 
@@ -112,3 +113,69 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 }
 ```
 
+### Webhooks
+
+This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/). 
+
+Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoffif there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed. 
+
+#### Managing webhook subscriptions
+
+Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-events` and `manage-events` permissions.
+
+| Path | Method | Payload | Returns | Description |
+| ---- | ------ | ------- | ------- | ----------- |
+| `/auth/realms/:realm/webhooks` | `GET` | | List of webhook objects | Get webhooks |
+| `/auth/realms/:realm/webhooks` | `POST` | Webhook object | `201` | Create webhook |
+| `/auth/realms/:realm/webhooks/:id` | `GET` | | Webhook object | Get webhook |
+| `/auth/realms/:realm/webhooks/:id` | `PUT` | Webhook object | `204` | Update webhook |
+| `/auth/realms/:realm/webhooks/:id` | `DELETE` | Webhook object | `204` | Delete webhook |
+
+The webhook object has this format:
+```json
+{
+  "id": "475cd2fd-3ca8-4c22-b5c8-c8b8927dcc10",
+  "enabled": "true",
+  "url": "https://example.com/some/webhook",
+  "secret": "ofj09saP4",
+  "eventTypes": [
+    "*"
+  ],
+  "createdBy": "ff730b72-a421-4f6e-9e4e-7fc7f53bac88",
+  "createdAt": "2021-04-21T18:25:43-05:00"
+}
+```	
+
+For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+
+##### Example
+
+To create a webhook for all events on the `master` realm:
+
+```
+POST /auth/realms/master/webhooks
+
+{
+  "enabled": "true",
+  "url": "https://en6fowyrouz6q4o.m.pipedream.net",
+  "secret": "A3jt6D8lz",
+  "eventTypes": [
+    "*"
+  ]
+}
+```
+
+[Pipedream](https://pipedream.com/) is a great way to test your webhooks, and use the data to integrate with your other applications.
+
+#### Sending app events
+
+There is also a custom REST resource that allows publishing of arbitrary events. These are subsequently sent to the registered webhooks. In order to publish events, there is a new role `publish-events` which callers must have. 
+
+| Path | Method | Payload | Returns | Description |
+| ---- | ------ | ------- | ------- | ----------- |
+| `/auth/realms/:realm/events` | `POST` | Event object | `202 = Event received`<br/>`400 = Malformed event`<br/>`403 = API rate limit exceeded`<br/>`409 = Reserved event type` | Publish event |
+
+
+#### For system owners
+
+There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environtment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.

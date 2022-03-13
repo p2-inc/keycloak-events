@@ -21,6 +21,7 @@ import org.keycloak.services.resources.admin.AdminAuth;
 import org.keycloak.services.resources.admin.AdminEventBuilder;
 import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
 import org.keycloak.services.resources.admin.permissions.AdminPermissions;
+import org.keycloak.services.resources.admin.permissions.ManagementPermissions;
 
 @JBossLog
 public abstract class AbstractAdminResource {
@@ -42,6 +43,15 @@ public abstract class AbstractAdminResource {
     setupEvents();
     setupPermissions();
     init();
+  }
+
+  public void requireAdminRole(String role) {
+    if (!hasAdminRole(role))
+      throw new NotAuthorizedException(String.format("%s role is required", role));
+  }
+
+  public boolean hasAdminRole(String role) {
+    return ManagementPermissions.hasOneAdminRole(session, realm, auth, role);
   }
 
   void init() {

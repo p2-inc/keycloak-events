@@ -28,13 +28,14 @@ public class MultiEventListenerProvider implements EventListenerProvider {
     this.async = async;
     this.exec = exec;
     if (async) {
-      runnableTrx = new RunnableTransaction(exec);
+      runnableTrx = new RunnableTransaction();
       session.getTransactionManager().enlistAfterCompletion(runnableTrx);
     }
   }
 
   @Override
   public void onEvent(Event event) {
+    log.debugf("onEvent %s %s", event.getType(), event.getId());
     providers.forEach(
         p -> {
           run(() -> p.onEvent(event));
@@ -43,6 +44,9 @@ public class MultiEventListenerProvider implements EventListenerProvider {
 
   @Override
   public void onEvent(AdminEvent adminEvent, boolean b) {
+    log.debugf(
+        "onEvent %s %s %s",
+        adminEvent.getOperationType(), adminEvent.getResourceType(), adminEvent.getResourcePath());
     providers.forEach(
         p -> {
           run(() -> p.onEvent(adminEvent, b));
