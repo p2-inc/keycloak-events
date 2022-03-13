@@ -4,7 +4,6 @@ import com.google.common.collect.ObjectArrays;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -88,7 +87,7 @@ public class KeycloakSuite implements TestRule {
   }
 
   private void init() {
-    port = nextFreePort(8082, 10000);
+    port = Helpers.nextFreePort(8082, 10000);
     String portProp = String.format("keycloak.port=%d", port);
     String[] props = ObjectArrays.concat(PROPS, portProp);
     setSystemProps(props);
@@ -97,24 +96,6 @@ public class KeycloakSuite implements TestRule {
       keycloak = KeycloakServer.bootstrapKeycloakServer(ARGS);
     } catch (Throwable e) {
       throw new IllegalStateException("Unable to start KeycloakServer", e);
-    }
-  }
-
-  private static int nextFreePort(int from, int to) {
-    for (int port = from; port <= to; port++) {
-      if (isLocalPortFree(port)) {
-        return port;
-      }
-    }
-    throw new IllegalStateException("No free port found");
-  }
-
-  private static boolean isLocalPortFree(int port) {
-    try {
-      new ServerSocket(port).close();
-      return true;
-    } catch (IOException e) {
-      return false;
     }
   }
 

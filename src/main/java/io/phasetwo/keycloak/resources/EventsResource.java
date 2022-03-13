@@ -30,7 +30,7 @@ public class EventsResource extends AbstractAdminResource {
   public Response publishEvent(@Valid ExtendedAdminEvent body) {
     log.infof("Publish event for %s %s", realm.getName(), body);
 
-    requireRole(EventsResourceProviderFactory.ROLE_PUBLISH_EVENTS);
+    requireAdminRole(EventsResourceProviderFactory.ROLE_PUBLISH_EVENTS);
 
     // validation
     if (body.getType() == null) {
@@ -49,7 +49,10 @@ public class EventsResource extends AbstractAdminResource {
 
     getEventEmitter().ifPresent(e -> e.processEvent(body));
 
-    return Response.accepted().build();
+    //    return Response.accepted().build();
+    //    return Response.noContent().status(202).build();//hack jax-rs doesn't like accepted()
+    // without content-type set
+    return Response.accepted().type(MediaType.WILDCARD).build();
   }
 
   private ExtendedAuthDetails getAuthDetails() {

@@ -1,7 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
 import com.google.auto.service.AutoService;
-import java.util.List;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.models.AdminRoles;
@@ -46,20 +45,23 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
 
   private void initRoles(KeycloakSession session) {
     ClientModel client;
-    List<RealmModel> realms = session.realms().getRealms();
     RealmManager manager = new RealmManager(session);
-    for (RealmModel realm : realms) {
-      client = realm.getMasterAdminClient();
-      if (client.getRole(ROLE_PUBLISH_EVENTS) == null) {
-        addMasterAdminRoles(manager, realm);
-      }
-      if (!realm.getName().equals(Config.getAdminRealm())) {
-        client = realm.getClientByClientId(manager.getRealmAdminClientId(realm));
-        if (client.getRole(ROLE_PUBLISH_EVENTS) == null) {
-          addRealmAdminRoles(manager, realm);
-        }
-      }
-    }
+    session
+        .realms()
+        .getRealms()
+        .forEach(
+            realm -> {
+              client = realm.getMasterAdminClient();
+              if (client.getRole(ROLE_PUBLISH_EVENTS) == null) {
+                addMasterAdminRoles(manager, realm);
+              }
+              if (!realm.getName().equals(Config.getAdminRealm())) {
+                client = realm.getClientByClientId(manager.getRealmAdminClientId(realm));
+                if (client.getRole(ROLE_PUBLISH_EVENTS) == null) {
+                  addRealmAdminRoles(manager, realm);
+                }
+              }
+            });
   }
 
   private void realmPostCreate(RealmModel.RealmPostCreateEvent event) {

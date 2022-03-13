@@ -65,6 +65,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     }
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
+    log.debugf("sent to %s (%d)", targetUri, status);
     if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
       log.warnf("Sending failure (Server response:%d)", status);
       throw new SenderException(true);

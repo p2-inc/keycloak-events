@@ -84,6 +84,11 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
       this.retryable = retryable;
     }
 
+    public SenderException(boolean retryable, Throwable cause) {
+      super(cause);
+      this.retryable = retryable;
+    }
+
     public boolean isRetryable() {
       return this.retryable;
     }
@@ -103,9 +108,10 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
           try {
             send(task);
           } catch (SenderException | IOException e) {
-            log.warn("retryable exception", e);
+            log.debug("sending exception", e);
             if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
             long backOffTime = task.getBackOff().nextBackOffMillis();
+            log.infof("retrying in %d due to %s", backOffTime, e.getCause());
             if (backOffTime == BackOff.STOP) return;
             schedule(task, backOffTime, TimeUnit.MILLISECONDS);
           } catch (Throwable t) {

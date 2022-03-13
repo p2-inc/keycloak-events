@@ -103,6 +103,10 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       if ("access.*".equals(t) && type.startsWith("access.")) return true;
       if ("admin.*".equals(t) && type.startsWith("admin.")) return true;
       if ("system.*".equals(t) && type.startsWith("system.")) return true;
+      try {
+        if (Pattern.matches(t, type)) return true;
+      } catch (Exception e) {
+      }
       if (t.equals(type)) return true;
     }
     return false;
