@@ -44,14 +44,13 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
   }
 
   private void initRoles(KeycloakSession session) {
-    ClientModel client;
     RealmManager manager = new RealmManager(session);
     session
         .realms()
         .getRealms()
         .forEach(
             realm -> {
-              client = realm.getMasterAdminClient();
+              ClientModel client = realm.getMasterAdminClient();
               if (client.getRole(ROLE_PUBLISH_EVENTS) == null) {
                 addMasterAdminRoles(manager, realm);
               }

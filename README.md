@@ -121,7 +121,7 @@ Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvid
 
 #### Managing webhook subscriptions
 
-Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-realm` and `manage-realm` permissions.
+Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-events` and `manage-events` permissions.
 
 | Path | Method | Payload | Returns | Description |
 | ---- | ------ | ------- | ------- | ----------- |

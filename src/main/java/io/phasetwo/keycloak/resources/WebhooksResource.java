@@ -10,7 +10,6 @@ import javax.validation.constraints.*;
 import javax.ws.rs.*;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -35,8 +34,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Stream<WebhookRepresentation> getWebhooks() {
-    if (!permissions.realm().canViewRealm())
-      throw new ForbiddenException("get webhooks requires view-realm");
+    permissions.realm().requireViewEvents();
     return webhooks.getWebhooksStream(realm).map(w -> toRepresentation(w));
   }
 
@@ -56,8 +54,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response createWebhook(final WebhookRepresentation rep) {
-    if (!permissions.realm().canManageRealm())
-      throw new ForbiddenException("create webhook requires manage-realm");
+    permissions.realm().requireManageEvents();
     validateWebhook(rep);
     WebhookModel w = webhooks.createWebhook(realm, rep.getUrl(), auth.getUser());
     mergeWebhook(rep, w);
@@ -75,8 +72,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @Path("{id}")
   @Produces(MediaType.APPLICATION_JSON)
   public WebhookRepresentation getWebhook(final @PathParam("id") String id) {
-    if (!permissions.realm().canViewRealm())
-      throw new ForbiddenException("get webhook requires view-realm");
+    permissions.realm().requireViewEvents();
     WebhookModel w = webhooks.getWebhookById(realm, id);
     if (w != null) return toRepresentation(w);
     else throw new NotFoundException(String.format("no webhook with id %s", id));
@@ -86,8 +82,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @Path("{id}")
   @Consumes(MediaType.APPLICATION_JSON)
   public Response updateWebhook(final @PathParam("id") String id, WebhookRepresentation rep) {
-    if (!permissions.realm().canManageRealm())
-      throw new ForbiddenException("update webhook requires manage-realm");
+    permissions.realm().requireManageEvents();
     validateWebhook(rep);
     WebhookModel w = webhooks.getWebhookById(realm, id);
     if (w == null) throw new NotFoundException(String.format("no webhook with id %s", id));
@@ -120,8 +115,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @DELETE
   @Path("{id}")
   public Response removeWebhook(final @PathParam("id") String id) {
-    if (!permissions.realm().canManageRealm())
-      throw new ForbiddenException("remove webhook requires manage-realm");
+    permissions.realm().requireManageEvents();
     getWebhook(id); // forces a not found if it doesn't exist
     webhooks.removeWebhook(realm, id);
     return Response.noContent().build();
