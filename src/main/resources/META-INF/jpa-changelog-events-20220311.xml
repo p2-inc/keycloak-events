@@ -16,6 +16,7 @@
       <column name="CREATED_BY_USER_ID" type="VARCHAR(36)"/>
       <column name="REALM_ID" type="VARCHAR(36)"/>
     </createTable>
+    <addPrimaryKey columnNames="ID" constraintName="WEBHOOKPK" tableName="WEBHOOK"/>
     <createTable tableName="WEBHOOK_EVENT_TYPES">
       <column name="WEBHOOK_ID" type="VARCHAR(36)">
         <constraints nullable="false"/>
