@@ -117,7 +117,7 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 
 This provides the entities and REST endpoints required to allow webhook subscriptions to events. The events have been slightly modified so that there are no longer 2 types of events, but are now distinguished by a type prefix. Definition on the event format and types is available in the [Phase Two](https://phasetwo.io/) documentation under [Audit Logs](https://phasetwo.io/docs/audit-logs/). 
 
-Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoffif there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed. 
+Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoff if there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed. 
 
 #### Managing webhook subscriptions
 
@@ -179,3 +179,7 @@ There is also a custom REST resource that allows publishing of arbitrary events.
 #### For system owners
 
 There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environtment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
+
+---
+
+All documentation, source code and other files in this repository are Copyright 2022 Phase Two, Inc.
