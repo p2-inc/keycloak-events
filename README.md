@@ -15,7 +15,7 @@ This is currently known to work with Keycloak > 15.0.2. Other versions may work 
 
 ## Installation
 
-The maven build uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `standalone/deployments` directory and restart keycloak.
+The maven build uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `providers` directory (for Quarkus) or `standalone/deployments` directory (for legacy) and rebuild/restart keycloak.
 
 ## Use
 
