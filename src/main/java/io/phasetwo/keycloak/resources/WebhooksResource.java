@@ -45,7 +45,7 @@ public class WebhooksResource extends AbstractAdminResource {
     webhook.setUrl(w.getUrl());
     webhook.setCreatedBy(w.getCreatedBy().getId());
     webhook.setCreatedAt(w.getCreatedAt());
-    webhook.setRealm(w.getRealm().getId());
+    webhook.setRealm(w.getRealm().getName());
     webhook.setEventTypes(w.getEventTypes());
     // no secret
     return webhook;

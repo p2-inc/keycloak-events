@@ -47,7 +47,7 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
     RealmManager manager = new RealmManager(session);
     session
         .realms()
-        .getRealms()
+        .getRealmsStream()
         .forEach(
             realm -> {
               ClientModel client = realm.getMasterAdminClient();

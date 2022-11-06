@@ -15,6 +15,7 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
@@ -26,8 +27,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
 
   private final RealmModel realm;
-  private final WebhookProvider webhooks;
+  // private final WebhookProvider webhooks;
   private final RunnableTransaction runnableTrx;
+  private final KeycloakSessionFactory factory;
 
   private final String systemUri;
   private final String systemSecret;
@@ -35,8 +37,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public WebhookSenderEventListenerProvider(
       KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
+    this.factory = session.getKeycloakSessionFactory();
     this.realm = session.getContext().getRealm();
-    this.webhooks = session.getProvider(WebhookProvider.class);
+    // this.webhooks = session.getProvider(WebhookProvider.class);
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
     // for system owner catch-all
@@ -47,8 +50,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   @Override
   public void onEvent(Event event) {
     log.debugf("onEvent %s %s", event.getType(), event.getId());
-    ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
-    runnableTrx.addRunnable(() -> processEvent(customEvent));
+    try {
+      ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
+      runnableTrx.addRunnable(() -> processEvent(customEvent));
+    } catch (Exception e) {
+      log.warn("Error converting and scheduling event: " + event, e);
+    }
   }
 
   @Override
@@ -56,8 +63,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     log.debugf(
         "onEvent %s %s %s",
         adminEvent.getOperationType(), adminEvent.getResourceType(), adminEvent.getResourcePath());
-    ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
-    runnableTrx.addRunnable(() -> processEvent(customEvent));
+    try {
+      ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
+      runnableTrx.addRunnable(() -> processEvent(customEvent));
+    } catch (Exception e) {
+      log.warn("Error converting and scheduling event: " + adminEvent, e);
+    }
   }
 
   /** Update the event with a unique uid */
@@ -71,20 +82,25 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   /** Schedule dispatch to all webhooks and system */
   private void processEvent(Supplier<ExtendedAdminEvent> supplier) {
-    webhooks
-        .getWebhooksStream(realm)
-        .filter(w -> w.isEnabled())
-        .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
-        .forEach(
-            w -> {
-              ExtendedAdminEvent customEvent = supplier.get();
-              if (!enabledFor(w, customEvent)) return;
-              schedule(customEvent, w.getUrl(), w.getSecret());
-            });
-    // for system owner catch-all
-    if (!Strings.isNullOrEmpty(systemUri)) {
-      schedule(supplier.get(), systemUri, systemSecret);
-    }
+    KeycloakModelUtils.runJobInTransaction(
+        factory,
+        (session) -> {
+          WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
+          webhooks
+              .getWebhooksStream(realm)
+              .filter(w -> w.isEnabled())
+              .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
+              .forEach(
+                  w -> {
+                    ExtendedAdminEvent customEvent = supplier.get();
+                    if (!enabledFor(w, customEvent)) return;
+                    schedule(customEvent, w.getUrl(), w.getSecret());
+                  });
+          // for system owner catch-all
+          if (!Strings.isNullOrEmpty(systemUri)) {
+            schedule(supplier.get(), systemUri, systemSecret);
+          }
+        });
   }
 
   private void schedule(ExtendedAdminEvent customEvent, String url, String secret) {
