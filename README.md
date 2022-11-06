@@ -1,3 +1,6 @@
+> :rocket: **Try it for free** in the new Phase Two [keycloak managed service](https://phasetwo.io/dashboard/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events
+). See the [announcement and demo video](https://phasetwo.io/blog/self-service/) for more information.
+
 # keycloak-events
 
 Useful Keycloak `EventListenerProvider` implementations and utilities.
@@ -8,6 +11,10 @@ Useful Keycloak `EventListenerProvider` implementations and utilities.
 - [A mechanism for running multiple event listeners of the same type with different configurations](#enabling-running-multiple-eventlistenerprovider-instances-of-the-same-type)
 - [Base classes for a User added/removed listener](#user-change-listener)
 - [A unified event model with facility for subscribing to webhooks](#webhooks)
+
+## Quick start
+
+The easiest way to get started is our [Docker image](https://quay.io/repository/phasetwo/phasetwo-keycloak?tab=tags). Documentation and examples for using it are in the [phasetwo-containers](https://github.com/p2-inc/phasetwo-containers) repo. The most recent version of this extension is included.
 
 ## Compatibility
 
