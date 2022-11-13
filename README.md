@@ -63,13 +63,13 @@ function onAdminEvent(event, representation) {
 
 ### HTTP Sender
 
-Send the events to a specified URI. May sign the request using keyed-HMAC. Optionally retryable using exponetial backoff.
+Send the events to a specified URI. May sign the request using keyed-HMAC-SHA1. Optionally retryable using exponetial backoff.
 
 Configuration values:
 | Name | Required | Default | Description |
 | -----| -------- | ------- | ----------- |
 | `targetUri` | Y |  | The URI to send the event payload |
-| `sharedSecret` | N |  | The shared secret value to use for HMAC signing. If present, the signature according to RFC2104 will be passed as `X-Keycloak-Signature` header |
+| `sharedSecret` | N |  | The shared secret value to use for HMAC-SHA1 signing. If present, the signature according to RFC2104 will be passed as `X-Keycloak-Signature` header |
 | `retry` | N | false | Should it use exponential backoff to retry on non 2xx response |
 | `backoffInitialInterval` | N | 500 | Initial interval value in milliseconds |
 | `backoffMaxElapsedTime` | N | 900000 | Maximum elapsed time in milliseconds |
