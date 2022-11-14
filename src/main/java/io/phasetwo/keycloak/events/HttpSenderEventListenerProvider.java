@@ -64,11 +64,14 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm());
   }
 
-  protected void send(SenderTask task, String targetUri, String sharedSecret, Optional<String> algorithm)
+  protected void send(
+      SenderTask task, String targetUri, String sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
     if (sharedSecret != null) {
-      request.header("X-Keycloak-Signature", hmacFor(task.getEvent(), sharedSecret, algorithm.orElse(HMAC_SHA256_ALGORITHM)));
+      request.header(
+          "X-Keycloak-Signature",
+          hmacFor(task.getEvent(), sharedSecret, algorithm.orElse(HMAC_SHA256_ALGORITHM)));
     }
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
@@ -92,7 +95,8 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
   private static final String HMAC_SHA256_ALGORITHM = "HmacSHA256";
 
-  public static String calculateHmacSha(String data, String key, String algorithm) throws SignatureException {
+  public static String calculateHmacSha(String data, String key, String algorithm)
+      throws SignatureException {
     String result = null;
     try {
       SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), algorithm);

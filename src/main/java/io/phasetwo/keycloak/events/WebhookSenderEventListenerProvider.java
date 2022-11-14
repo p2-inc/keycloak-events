@@ -107,7 +107,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
         });
   }
 
-  private void schedule(ExtendedAdminEvent customEvent, String url, String secret, String algorithm) {
+  private void schedule(
+      ExtendedAdminEvent customEvent, String url, String secret, String algorithm) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
     task.getProperties().put("url", url);
     task.getProperties().put("secret", secret);

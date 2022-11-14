@@ -12,8 +12,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableSet;
 import io.phasetwo.keycloak.KeycloakSuite;
-import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
+import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
@@ -185,7 +185,8 @@ public class WebhooksResourceTest {
     assertNotNull(body.get());
     assertThat(body.get(), containsString("abc123"));
     // check hmac
-    String sha = HttpSenderEventListenerProvider.calculateHmacSha(body.get(), "qlfwemke", "HmacSHA256");
+    String sha =
+        HttpSenderEventListenerProvider.calculateHmacSha(body.get(), "qlfwemke", "HmacSHA256");
     log.infof("hmac header %s sha %s", shaHeader.get(), sha);
     assertThat(shaHeader.get(), is(sha));
 
