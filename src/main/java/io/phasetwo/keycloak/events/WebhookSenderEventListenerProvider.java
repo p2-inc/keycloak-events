@@ -143,13 +143,11 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {
-    ExtendedAdminEvent extendedAdminEvent = new ExtendedAdminEvent(uid, event);
+    RealmModel realm = session.realms().getRealm(event.getRealmId());
+    ExtendedAdminEvent extendedAdminEvent = new ExtendedAdminEvent(uid, event, realm);
     if (!Strings.isNullOrEmpty(event.getUserId())) {
       // retrieve username from userId
-      UserModel user =
-          session
-              .users()
-              .getUserById(session.realms().getRealm(event.getRealmId()), event.getUserId());
+      UserModel user = session.users().getUserById(realm, event.getUserId());
       if (user != null) {
         extendedAdminEvent.getAuthDetails().setUsername(user.getUsername());
       }
@@ -159,16 +157,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, AdminEvent adminEvent) {
-    ExtendedAdminEvent extendedAdminEvent = new ExtendedAdminEvent(uid, adminEvent);
+    RealmModel realm = session.realms().getRealm(adminEvent.getRealmId());
+    ExtendedAdminEvent extendedAdminEvent = new ExtendedAdminEvent(uid, adminEvent, realm);
     // add always missing agent username
     ExtendedAuthDetails extendedAuthDetails = extendedAdminEvent.getAuthDetails();
     if (!Strings.isNullOrEmpty(extendedAuthDetails.getUserId())) {
-      UserModel user =
-          session
-              .users()
-              .getUserById(
-                  session.realms().getRealm(extendedAuthDetails.getRealmId()),
-                  extendedAuthDetails.getUserId());
+      UserModel user = session.users().getUserById(realm, extendedAuthDetails.getUserId());
       extendedAuthDetails.setUsername(user.getUsername());
     }
     // add username if resource is a user

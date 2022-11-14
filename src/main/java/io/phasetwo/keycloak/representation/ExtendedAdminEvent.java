@@ -7,6 +7,7 @@ import java.util.Map;
 import org.keycloak.events.Event;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AuthDetails;
+import org.keycloak.models.RealmModel;
 
 /** Unified event class. */
 public class ExtendedAdminEvent extends AdminEvent {
@@ -32,13 +33,14 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public ExtendedAdminEvent() {}
 
-  public ExtendedAdminEvent(String uid, AdminEvent event) {
+  public ExtendedAdminEvent(String uid, AdminEvent event, RealmModel realm) {
     this.uid = uid;
     this.type = createType(event);
 
     setTime(event.getTime());
-    setRealmId(event.getRealmId());
+    setRealmId(realm.getName());
     setAuthDetails(event.getAuthDetails());
+    extAuthDetails.setRealmId(realm.getName());
     setResourceType(event.getResourceType());
     setOperationType(event.getOperationType());
     setResourcePath(event.getResourcePath());
@@ -46,11 +48,12 @@ public class ExtendedAdminEvent extends AdminEvent {
     setError(event.getError());
   }
 
-  public ExtendedAdminEvent(String uid, Event event) {
+  public ExtendedAdminEvent(String uid, Event event, RealmModel realm) {
     this.uid = uid;
     this.type = createType(event);
 
     ExtendedAuthDetails authDetails = new ExtendedAuthDetails(null);
+    authDetails.setRealmId(realm.getName());
     authDetails.setClientId(event.getClientId());
     authDetails.setIpAddress(event.getIpAddress());
     authDetails.setSessionId(event.getSessionId());
