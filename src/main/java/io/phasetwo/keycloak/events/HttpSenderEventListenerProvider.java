@@ -7,6 +7,7 @@ import com.github.xgp.util.BackOff;
 import com.github.xgp.util.ExponentialBackOff;
 import java.io.IOException;
 import java.security.SignatureException;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -21,6 +22,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected static final String TARGET_URI = "targetUri";
   protected static final String RETRY = "retry";
   protected static final String SHARED_SECRET = "sharedSecret";
+  protected static final String HMAC_ALGORITHM = "hmacAlgorithm";
   protected static final String BACKOFF_INITIAL_INTERVAL = "backoffInitialInterval";
   protected static final String BACKOFF_MAX_ELAPSED_TIME = "backoffMaxElapsedTime";
   protected static final String BACKOFF_MAX_INTERVAL = "backoffMaxInterval";
@@ -52,16 +54,21 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     return config.get(SHARED_SECRET).toString();
   }
 
-  @Override
-  void send(SenderTask task) throws SenderException, IOException {
-    send(task, getTargetUri(), getSharedSecret());
+  Optional<String> getHmacAlgorithm() {
+    Object a = config.get(HMAC_ALGORITHM);
+    return a != null ? Optional.of(a.toString()) : Optional.empty();
   }
 
-  protected void send(SenderTask task, String targetUri, String sharedSecret)
+  @Override
+  void send(SenderTask task) throws SenderException, IOException {
+    send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm());
+  }
+
+  protected void send(SenderTask task, String targetUri, String sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
     if (sharedSecret != null) {
-      request.header("X-Keycloak-Signature", hmacFor(task.getEvent(), sharedSecret));
+      request.header("X-Keycloak-Signature", hmacFor(task.getEvent(), sharedSecret, algorithm.orElse(HMAC_SHA256_ALGORITHM)));
     }
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
@@ -72,10 +79,10 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     }
   }
 
-  protected String hmacFor(Object o, String sharedSecret) {
+  protected String hmacFor(Object o, String sharedSecret, String algorithm) {
     try {
       String data = JsonSerialization.writeValueAsString(o);
-      return calculateHmacSha(data, sharedSecret);
+      return calculateHmacSha(data, sharedSecret, algorithm);
     } catch (Exception e) {
       log.warn("Unable to sign data", e);
     }
@@ -83,12 +90,13 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   }
 
   private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
+  private static final String HMAC_SHA256_ALGORITHM = "HmacSHA256";
 
-  private static String calculateHmacSha(String data, String key) throws SignatureException {
+  public static String calculateHmacSha(String data, String key, String algorithm) throws SignatureException {
     String result = null;
     try {
-      SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), HMAC_SHA1_ALGORITHM);
-      Mac mac = Mac.getInstance(HMAC_SHA1_ALGORITHM);
+      SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), algorithm);
+      Mac mac = Mac.getInstance(algorithm);
       mac.init(signingKey);
       byte[] digest = mac.doFinal(data.getBytes());
       StringBuilder sb = new StringBuilder(digest.length * 2);

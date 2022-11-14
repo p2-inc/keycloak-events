@@ -66,6 +66,16 @@ public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
   }
 
   @Override
+  public String getAlgorithm() {
+    return webhook.getAlgorithm();
+  }
+
+  @Override
+  public void setAlgorithm(String algorithm) {
+    webhook.setAlgorithm(algorithm);
+  }
+
+  @Override
   public RealmModel getRealm() {
     return session.realms().getRealm(webhook.getRealmId());
   }

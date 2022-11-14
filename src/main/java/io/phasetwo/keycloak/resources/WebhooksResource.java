@@ -110,6 +110,11 @@ public class WebhooksResource extends AbstractAdminResource {
     if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
       w.setSecret(rep.getSecret());
     }
+    if (rep.getAlgorithm() != null && !"".equals(rep.getAlgorithm())) {
+      w.setAlgorithm(rep.getAlgorithm());
+    } else {
+      w.setAlgorithm("HmacSHA256");
+    }
   }
 
   @DELETE

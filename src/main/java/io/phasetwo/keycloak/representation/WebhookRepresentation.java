@@ -10,6 +10,7 @@ public class WebhookRepresentation {
   private boolean enabled;
   private String url;
   private String secret;
+  private String algorithm;
   private String createdBy;
   private Date createdAt;
   private String realm;

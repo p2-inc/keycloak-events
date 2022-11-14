@@ -6,6 +6,7 @@ import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -25,6 +26,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   private static final String WEBHOOK_URI_ENV = "WEBHOOK_URI";
   private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
+  private static final String WEBHOOK_ALGORITHM_ENV = "WEBHOOK_ALGORITHM";
 
   private final RealmModel realm;
   // private final WebhookProvider webhooks;
@@ -33,6 +35,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   private final String systemUri;
   private final String systemSecret;
+  private final String systemAlgorithm;
 
   public WebhookSenderEventListenerProvider(
       KeycloakSession session, ScheduledExecutorService exec) {
@@ -45,6 +48,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     // for system owner catch-all
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
+    this.systemAlgorithm = System.getenv(WEBHOOK_ALGORITHM_ENV);
   }
 
   @Override
@@ -94,19 +98,20 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
                   w -> {
                     ExtendedAdminEvent customEvent = supplier.get();
                     if (!enabledFor(w, customEvent)) return;
-                    schedule(customEvent, w.getUrl(), w.getSecret());
+                    schedule(customEvent, w.getUrl(), w.getSecret(), w.getAlgorithm());
                   });
           // for system owner catch-all
           if (!Strings.isNullOrEmpty(systemUri)) {
-            schedule(supplier.get(), systemUri, systemSecret);
+            schedule(supplier.get(), systemUri, systemSecret, systemAlgorithm);
           }
         });
   }
 
-  private void schedule(ExtendedAdminEvent customEvent, String url, String secret) {
+  private void schedule(ExtendedAdminEvent customEvent, String url, String secret, String algorithm) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
     task.getProperties().put("url", url);
     task.getProperties().put("secret", secret);
+    task.getProperties().put("algorithm", algorithm);
     schedule(task, 0l, TimeUnit.MILLISECONDS);
   }
 
@@ -132,7 +137,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   void send(SenderTask task) throws SenderException, IOException {
     String sharedSecret = task.getProperties().get("secret");
     String targetUri = task.getProperties().get("url");
-    send(task, targetUri, sharedSecret);
+    Optional<String> hmacAlgorithm = Optional.of(task.getProperties().get("algorithm"));
+    send(task, targetUri, sharedSecret, hmacAlgorithm);
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {

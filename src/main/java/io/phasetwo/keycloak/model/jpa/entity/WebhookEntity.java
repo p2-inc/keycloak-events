@@ -33,6 +33,9 @@ public class WebhookEntity {
   @Column(name = "SECRET")
   protected String secret;
 
+  @Column(name = "ALGORITHM")
+  protected String algorithm;
+
   @ElementCollection
   @Column(name = "VALUE")
   @CollectionTable(
@@ -90,6 +93,14 @@ public class WebhookEntity {
 
   public void setSecret(String secret) {
     this.secret = secret;
+  }
+
+  public String getAlgorithm() {
+    return algorithm;
+  }
+
+  public void setAlgorithm(String algorithm) {
+    this.algorithm = algorithm;
   }
 
   public Set<String> getEventTypes() {

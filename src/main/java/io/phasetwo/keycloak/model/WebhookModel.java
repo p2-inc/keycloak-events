@@ -21,6 +21,10 @@ public interface WebhookModel {
 
   void setSecret(String secret);
 
+  String getAlgorithm();
+
+  void setAlgorithm(String algorithm);
+
   RealmModel getRealm();
 
   UserModel getCreatedBy();

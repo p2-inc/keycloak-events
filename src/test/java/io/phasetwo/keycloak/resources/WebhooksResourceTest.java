@@ -13,6 +13,7 @@ import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableSet;
 import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
+import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import java.net.URLEncoder;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
@@ -147,6 +148,7 @@ public class WebhooksResourceTest {
     addEventListener(keycloak, "master", "ext-event-webhook");
 
     AtomicReference<String> body = new AtomicReference<String>();
+    AtomicReference<String> shaHeader = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = nextFreePort(8083, 10000);
     String id =
@@ -165,8 +167,9 @@ public class WebhooksResourceTest {
             "/webhook",
             (request, response) -> {
               String r = request.body();
-              log.infof("%s", r);
+              log.infof("body %s", r);
               body.set(r);
+              shaHeader.set(request.header("X-Keycloak-Signature"));
               response.body("OK");
               response.status(202);
             });
@@ -181,6 +184,10 @@ public class WebhooksResourceTest {
     // check the handler for the event, after a delay
     assertNotNull(body.get());
     assertThat(body.get(), containsString("abc123"));
+    // check hmac
+    String sha = HttpSenderEventListenerProvider.calculateHmacSha(body.get(), "qlfwemke", "HmacSHA256");
+    log.infof("hmac header %s sha %s", shaHeader.get(), sha);
+    assertThat(shaHeader.get(), is(sha));
 
     server.stop();
 
