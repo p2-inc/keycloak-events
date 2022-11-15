@@ -23,6 +23,7 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk/
         with:
+          release-branch-name: "main"
           version-minor: true
 
           git-release-bot-name: "phasetwo-bot"
