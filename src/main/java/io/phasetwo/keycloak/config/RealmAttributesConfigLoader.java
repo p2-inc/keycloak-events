@@ -33,8 +33,7 @@ public class RealmAttributesConfigLoader {
 
   public static <T> List<T> loadConfigurations(
       KeycloakSession session, String realm, String providerId, Class<T> clazz) {
-    return loadConfigurations(session, realm, providerId)
-        .stream()
+    return loadConfigurations(session, realm, providerId).stream()
         .map(s -> safeConvert(s, clazz))
         .collect(Collectors.toList());
   }

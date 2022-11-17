@@ -32,10 +32,7 @@ public class RealmAttributesResource extends AbstractAdminResource {
   public Map<String, RealmAttributeRepresentation> getAttributes() {
     if (!permissions.realm().canViewRealm())
       throw new ForbiddenException("get attributes requires view-realm");
-    return realm
-        .getAttributes()
-        .entrySet()
-        .stream()
+    return realm.getAttributes().entrySet().stream()
         .collect(
             Collectors.toMap(
                 Map.Entry::getKey,

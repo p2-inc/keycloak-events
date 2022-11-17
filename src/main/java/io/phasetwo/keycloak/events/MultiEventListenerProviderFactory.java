@@ -19,8 +19,7 @@ public abstract class MultiEventListenerProviderFactory extends AbstractEventLis
     ExecutorService exec =
         session.getProvider(ExecutorsProvider.class).getExecutor("multi-event-provider-threads");
     List<EventListenerProvider> providers =
-        getConfigurations(session)
-            .stream()
+        getConfigurations(session).stream()
             .map(config -> configure(session, config))
             .collect(Collectors.toList());
     return new MultiEventListenerProvider(session, providers, isAsync(), exec);
