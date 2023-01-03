@@ -29,7 +29,6 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private static final String WEBHOOK_ALGORITHM_ENV = "WEBHOOK_ALGORITHM";
 
   private final RealmModel realm;
-  // private final WebhookProvider webhooks;
   private final RunnableTransaction runnableTrx;
   private final KeycloakSessionFactory factory;
 
@@ -42,7 +41,6 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
     this.realm = session.getContext().getRealm();
-    // this.webhooks = session.getProvider(WebhookProvider.class);
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
     // for system owner catch-all
