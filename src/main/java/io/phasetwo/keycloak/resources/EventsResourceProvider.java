@@ -1,8 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
 
 public class EventsResourceProvider extends BaseRealmResourceProvider {
 
@@ -12,9 +10,7 @@ public class EventsResourceProvider extends BaseRealmResourceProvider {
 
   @Override
   public Object getRealmResource() {
-    RealmModel realm = session.getContext().getRealm();
-    EventsResource event = new EventsResource(realm);
-    ResteasyProviderFactory.getInstance().injectProperties(event);
+    EventsResource event = new EventsResource(session);
     event.setup();
     return event;
   }

@@ -16,13 +16,13 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
-import org.keycloak.models.RealmModel;
+import org.keycloak.models.KeycloakSession;
 
 @JBossLog
 public class RealmAttributesResource extends AbstractAdminResource {
 
-  public RealmAttributesResource(RealmModel realm) {
-    super(realm);
+  public RealmAttributesResource(KeycloakSession session) {
+    super(session);
   }
 
   //    this.adminEvent = adminEvent.resource(ResourceType.REALM);

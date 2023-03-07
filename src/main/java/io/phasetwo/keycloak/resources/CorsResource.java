@@ -1,7 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
 import javax.ws.rs.*;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.http.HttpRequest;
@@ -35,20 +34,11 @@ public class CorsResource {
   public static void setupCors(KeycloakSession session, AdminAuth auth) {
     HttpRequest request = session.getContext().getHttpRequest();
     HttpResponse response = session.getContext().getHttpResponse();
-    if (hasCors(response)) return;
     Cors.add(request)
         .allowedOrigins(auth.getToken())
         .allowedMethods(METHODS)
         .exposedHeaders("Location")
         .auth()
         .build(response);
-  }
-
-  public static boolean hasCors(HttpResponse response) {
-    MultivaluedMap<String, Object> headers = response.getOutputHeaders();
-    if (headers == null) return false;
-    return (headers.get("Access-Control-Allow-Credentials") != null
-        || headers.get("Access-Control-Allow-Origin") != null
-        || headers.get("Access-Control-Expose-Headers") != null);
   }
 }

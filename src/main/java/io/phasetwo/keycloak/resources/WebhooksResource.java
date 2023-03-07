@@ -18,7 +18,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
-import org.keycloak.models.RealmModel;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resources.admin.AdminRoot;
 
 @JBossLog
@@ -26,9 +26,9 @@ public class WebhooksResource extends AbstractAdminResource {
 
   private final WebhookProvider webhooks;
 
-  public WebhooksResource(RealmModel realm, WebhookProvider webhooks) {
-    super(realm);
-    this.webhooks = webhooks;
+  public WebhooksResource(KeycloakSession session) {
+    super(session);
+    this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
   @GET
