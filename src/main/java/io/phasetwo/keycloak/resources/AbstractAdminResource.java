@@ -4,7 +4,6 @@ import javax.validation.constraints.*;
 import javax.ws.rs.*;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.NotFoundException;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.common.ClientConnection;
@@ -26,16 +25,20 @@ import org.keycloak.services.resources.admin.permissions.ManagementPermissions;
 @JBossLog
 public abstract class AbstractAdminResource {
 
-  @Context protected ClientConnection clientConnection;
-  @Context protected HttpHeaders headers;
-  @Context protected KeycloakSession session;
+  protected final ClientConnection connection;
+  protected final HttpHeaders headers;
+  protected final KeycloakSession session;
+  protected final RealmModel realm;
+
   protected AdminAuth auth;
   protected AdminEventBuilder adminEvent;
   protected AdminPermissionEvaluator permissions;
-  protected final RealmModel realm;
 
-  protected AbstractAdminResource(RealmModel realm) {
-    this.realm = realm;
+  protected AbstractAdminResource(KeycloakSession session) {
+    this.session = session;
+    this.realm = session.getContext().getRealm();
+    this.headers = session.getContext().getRequestHeaders();
+    this.connection = session.getContext().getConnection();
   }
 
   public void setup() {
@@ -43,7 +46,6 @@ public abstract class AbstractAdminResource {
     setupEvents();
     setupPermissions();
     setupCors();
-    init();
   }
 
   public void requireAdminRole(String role) {
@@ -53,10 +55,6 @@ public abstract class AbstractAdminResource {
 
   public boolean hasAdminRole(String role) {
     return ManagementPermissions.hasOneAdminRole(session, realm, auth, role);
-  }
-
-  void init() {
-    // override if your extending class needs additional setup;
   }
 
   private void setupCors() {
@@ -98,7 +96,7 @@ public abstract class AbstractAdminResource {
     AuthenticationManager.AuthResult authResult =
         new AppAuthManager.BearerTokenAuthenticator(session)
             .setRealm(realm)
-            .setConnection(clientConnection)
+            .setConnection(connection)
             .setHeaders(headers)
             .authenticate();
 
