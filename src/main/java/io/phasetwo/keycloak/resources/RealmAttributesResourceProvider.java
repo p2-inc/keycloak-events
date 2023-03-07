@@ -1,8 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
 
 public class RealmAttributesResourceProvider extends BaseRealmResourceProvider {
 
@@ -12,9 +10,7 @@ public class RealmAttributesResourceProvider extends BaseRealmResourceProvider {
 
   @Override
   public Object getRealmResource() {
-    RealmModel realm = session.getContext().getRealm();
-    RealmAttributesResource realmAttributes = new RealmAttributesResource(realm);
-    ResteasyProviderFactory.getInstance().injectProperties(realmAttributes);
+    RealmAttributesResource realmAttributes = new RealmAttributesResource(session);
     realmAttributes.setup();
     return realmAttributes;
   }

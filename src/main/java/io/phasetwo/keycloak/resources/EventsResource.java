@@ -15,14 +15,14 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.EventListenerProvider;
-import org.keycloak.models.RealmModel;
+import org.keycloak.models.KeycloakSession;
 
 /** */
 @JBossLog
 public class EventsResource extends AbstractAdminResource {
 
-  public EventsResource(RealmModel realm) {
-    super(realm);
+  public EventsResource(KeycloakSession session) {
+    super(session);
   }
 
   @POST
