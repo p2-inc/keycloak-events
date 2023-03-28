@@ -15,6 +15,7 @@ import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -147,6 +148,7 @@ public class WebhooksResourceTest {
     // update a realm with the ext-event-webhook listener
     addEventListener(keycloak, "master", "ext-event-webhook");
 
+    AtomicInteger cnt = new AtomicInteger(0);
     AtomicReference<String> body = new AtomicReference<String>();
     AtomicReference<String> shaHeader = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
@@ -166,12 +168,18 @@ public class WebhooksResourceTest {
         .POST(
             "/webhook",
             (request, response) -> {
-              String r = request.body();
-              log.infof("body %s", r);
-              body.set(r);
-              shaHeader.set(request.header("X-Keycloak-Signature"));
-              response.body("OK");
-              response.status(202);
+              if (cnt.get() == 0) {
+                response.body("INTERNAL SERVER ERROR");
+                response.status(500);
+                cnt.incrementAndGet();
+              } else {
+                String r = request.body();
+                log.infof("body %s", r);
+                body.set(r);
+                shaHeader.set(request.header("X-Keycloak-Signature"));
+                response.body("OK");
+                response.status(202);
+              }
             });
     server.start();
     Thread.sleep(1000l);
@@ -179,10 +187,11 @@ public class WebhooksResourceTest {
     // cause an event to be sent
     createUser(keycloak, "master", "abc123");
 
-    Thread.sleep(1000l);
+    Thread.sleep(2500l);
 
     // check the handler for the event, after a delay
     assertNotNull(body.get());
+    assertThat(cnt.get(), is(1));
     assertThat(body.get(), containsString("abc123"));
     // check hmac
     String sha =
