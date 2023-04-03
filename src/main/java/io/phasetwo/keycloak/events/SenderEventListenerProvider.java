@@ -110,7 +110,9 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
           } catch (SenderException | IOException e) {
             log.debug("sending exception", e);
             if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
-            log.infof("BackOff policy is %s", BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
+            log.infof(
+                "BackOff policy is %s",
+                BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
             long backOffTime = task.getBackOff().nextBackOffMillis();
             if (backOffTime == BackOff.STOP) return;
             log.infof("retrying in %d due to %s", backOffTime, e.getCause());

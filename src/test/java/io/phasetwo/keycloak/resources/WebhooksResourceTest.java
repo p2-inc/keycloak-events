@@ -171,7 +171,7 @@ public class WebhooksResourceTest {
               String b = request.body();
               log.infof("body %s", b);
               if (b != null && b.contains("events/config")) {
-                //skip realm update event
+                // skip realm update event
               } else if (cnt.get() == 0) {
                 response.body("INTERNAL SERVER ERROR");
                 response.status(500);
@@ -200,6 +200,8 @@ public class WebhooksResourceTest {
         HttpSenderEventListenerProvider.calculateHmacSha(body.get(), "qlfwemke", "HmacSHA256");
     log.infof("hmac header %s sha %s", shaHeader.get(), sha);
     assertThat(shaHeader.get(), is(sha));
+
+    removeEventListener(keycloak, "master", "ext-event-webhook");
 
     server.stop();
 

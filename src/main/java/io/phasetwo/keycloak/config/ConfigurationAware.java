@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.config;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
@@ -22,5 +23,10 @@ public interface ConfigurationAware {
     List<Map<String, Object>> configs = getConfigurations(session);
     if (configs == null || configs.size() == 0) return ImmutableMap.of();
     else return configs.get(0);
+  }
+
+  default String configToString(Map<String, Object> config) {
+    if (config == null) return "[empty]";
+    else return "[" + Joiner.on(",").withKeyValueSeparator("=").join(config) + "]";
   }
 }

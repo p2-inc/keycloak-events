@@ -69,9 +69,11 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
-    sharedSecret.ifPresent(secret -> request.header(
-        "X-Keycloak-Signature",
-        hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+    sharedSecret.ifPresent(
+        secret ->
+            request.header(
+                "X-Keycloak-Signature",
+                hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
     log.debugf("sent to %s (%d)", targetUri, status);
