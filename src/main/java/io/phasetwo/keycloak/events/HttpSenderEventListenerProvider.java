@@ -35,7 +35,9 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   @Override
   BackOff getBackOff() {
-    if (getBooleanOr(config, RETRY, false)) return BackOff.STOP_BACKOFF;
+    boolean retry = getBooleanOr(config, RETRY, true);
+    log.infof("Retry is %b %s", retry, getOr(config, RETRY, "[empty]"));
+    if (!retry) return BackOff.STOP_BACKOFF;
     else
       return new ExponentialBackOff.Builder()
           .setInitialIntervalMillis(getIntOr(config, BACKOFF_INITIAL_INTERVAL, 500))
@@ -50,13 +52,12 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     return config.get(TARGET_URI).toString();
   }
 
-  String getSharedSecret() {
-    return config.get(SHARED_SECRET).toString();
+  Optional<String> getSharedSecret() {
+    return Optional.ofNullable(config.get(SHARED_SECRET)).map(Object::toString);
   }
 
   Optional<String> getHmacAlgorithm() {
-    Object a = config.get(HMAC_ALGORITHM);
-    return a != null ? Optional.of(a.toString()) : Optional.empty();
+    return Optional.ofNullable(config.get(HMAC_ALGORITHM)).map(Object::toString);
   }
 
   @Override
@@ -65,14 +66,12 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   }
 
   protected void send(
-      SenderTask task, String targetUri, String sharedSecret, Optional<String> algorithm)
+      SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
-    if (sharedSecret != null) {
-      request.header(
-          "X-Keycloak-Signature",
-          hmacFor(task.getEvent(), sharedSecret, algorithm.orElse(HMAC_SHA256_ALGORITHM)));
-    }
+    sharedSecret.ifPresent(secret -> request.header(
+        "X-Keycloak-Signature",
+        hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
     SimpleHttp.Response response = request.asResponse();
     int status = response.getStatus();
     log.debugf("sent to %s (%d)", targetUri, status);

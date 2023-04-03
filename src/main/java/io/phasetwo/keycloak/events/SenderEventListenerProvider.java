@@ -110,9 +110,10 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
           } catch (SenderException | IOException e) {
             log.debug("sending exception", e);
             if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
+            log.infof("BackOff policy is %s", BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
             long backOffTime = task.getBackOff().nextBackOffMillis();
-            log.infof("retrying in %d due to %s", backOffTime, e.getCause());
             if (backOffTime == BackOff.STOP) return;
+            log.infof("retrying in %d due to %s", backOffTime, e.getCause());
             schedule(task, backOffTime, TimeUnit.MILLISECONDS);
           } catch (Throwable t) {
             log.warn("Uncaught Sender error", t);
