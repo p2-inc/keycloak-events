@@ -71,7 +71,7 @@ Configuration values:
 | `targetUri` | Y |  | The URI to send the event payload |
 | `sharedSecret` | N |  | The shared secret value to use for HMAC signing. If present, the signature according to RFC2104 will be passed as `X-Keycloak-Signature` header |
 | `hmacAlgorithm` | N | HmacSHA256 | The HMAC algortihm used for signing. Defaults to HmacSHA256. Can be set to HmacSHA1 for backwards compatibility |
-| `retry` | N | false | Should it use exponential backoff to retry on non 2xx response |
+| `retry` | N | true | Should it use exponential backoff to retry on non 2xx response |
 | `backoffInitialInterval` | N | 500 | Initial interval value in milliseconds |
 | `backoffMaxElapsedTime` | N | 900000 | Maximum elapsed time in milliseconds |
 | `backoffMaxInterval` | N | 60000 | Maximum back off time in milliseconds |
