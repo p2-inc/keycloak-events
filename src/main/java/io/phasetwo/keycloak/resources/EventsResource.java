@@ -47,7 +47,7 @@ public class EventsResource extends AbstractAdminResource {
     // hydrate authdetails
     body.setAuthDetails(getAuthDetails());
 
-    getEventEmitter().ifPresent(e -> e.processEvent(body));
+    getEventEmitter().ifPresent(e -> e.processEvent(body, realm.getId()));
 
     //    return Response.accepted().build();
     //    return Response.noContent().status(202).build();//hack jax-rs doesn't like accepted()
