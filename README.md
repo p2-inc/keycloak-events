@@ -18,7 +18,7 @@ The easiest way to get started is our [Docker image](https://quay.io/repository/
 
 ## Compatibility
 
-This is currently known to work with Keycloak > 15.0.2. Other versions may work also. Please file an issue if you have successfully installed it with prior versions.
+The rate of breaking changes upstream in Keycloak make it impossible for us to support anything but the most recent version indicated in the `pom.xml`.
 
 ## Installation
 

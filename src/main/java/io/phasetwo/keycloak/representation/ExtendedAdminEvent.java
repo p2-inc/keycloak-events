@@ -7,6 +7,7 @@ import java.util.Map;
 import org.keycloak.events.Event;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AuthDetails;
+import org.keycloak.events.admin.ResourceType;
 import org.keycloak.models.RealmModel;
 
 /** Unified event class. */
@@ -19,8 +20,10 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   private static String createType(AdminEvent event) {
     StringBuilder o = new StringBuilder("admin.");
-    if (event.getResourceType() != null) o.append(event.getResourceType());
-    if (event.getResourceType() != null && event.getOperationType() != null) o.append("-");
+    if (event.getResourceTypeAsString() != null) {
+      o.append(event.getResourceTypeAsString());
+    }
+    if (event.getResourceTypeAsString() != null && event.getOperationType() != null) o.append("-");
     if (event.getOperationType() != null) o.append(event.getOperationType());
     return o.toString();
   }
@@ -42,6 +45,7 @@ public class ExtendedAdminEvent extends AdminEvent {
     setAuthDetails(event.getAuthDetails());
     extAuthDetails.setRealmId(realm.getName());
     setResourceType(event.getResourceType());
+    setResourceTypeAsString(event.getResourceTypeAsString());
     setOperationType(event.getOperationType());
     setResourcePath(event.getResourcePath());
     setRepresentation(event.getRepresentation());
@@ -109,8 +113,14 @@ public class ExtendedAdminEvent extends AdminEvent {
   }
 
   @Override
-  @JsonIgnore
+  @JsonProperty("resourceType")
   public String getResourceTypeAsString() {
     return super.getResourceTypeAsString();
+  }
+
+  @Override
+  @JsonIgnore
+  public ResourceType getResourceType() {
+    return super.getResourceType();
   }
 }

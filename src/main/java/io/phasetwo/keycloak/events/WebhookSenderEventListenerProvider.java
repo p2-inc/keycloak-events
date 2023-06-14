@@ -28,7 +28,6 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
   private static final String WEBHOOK_ALGORITHM_ENV = "WEBHOOK_ALGORITHM";
 
-  private final RealmModel realm;
   private final RunnableTransaction runnableTrx;
   private final KeycloakSessionFactory factory;
 
@@ -40,7 +39,6 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
-    this.realm = session.getContext().getRealm();
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
     // for system owner catch-all
@@ -54,7 +52,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     log.debugf("onEvent %s %s", event.getType(), event.getId());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
-      runnableTrx.addRunnable(() -> processEvent(customEvent));
+      runnableTrx.addRunnable(() -> processEvent(customEvent, event.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + event, e);
     }
@@ -64,29 +62,33 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public void onEvent(AdminEvent adminEvent, boolean b) {
     log.debugf(
         "onEvent %s %s %s",
-        adminEvent.getOperationType(), adminEvent.getResourceType(), adminEvent.getResourcePath());
+        adminEvent.getOperationType(),
+        adminEvent.getResourceTypeAsString(),
+        adminEvent.getResourcePath());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
-      runnableTrx.addRunnable(() -> processEvent(customEvent));
+      runnableTrx.addRunnable(() -> processEvent(customEvent, adminEvent.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + adminEvent, e);
     }
   }
 
   /** Update the event with a unique uid */
-  public void processEvent(ExtendedAdminEvent customEvent) {
+  public void processEvent(ExtendedAdminEvent customEvent, String realmId) {
     processEvent(
         () -> {
           customEvent.setUid(KeycloakModelUtils.generateId());
           return customEvent;
-        });
+        },
+        realmId);
   }
 
   /** Schedule dispatch to all webhooks and system */
-  private void processEvent(Supplier<ExtendedAdminEvent> supplier) {
+  private void processEvent(Supplier<ExtendedAdminEvent> supplier, String realmId) {
     KeycloakModelUtils.runJobInTransaction(
         factory,
         (session) -> {
+          RealmModel realm = session.realms().getRealm(realmId);
           WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
           webhooks
               .getWebhooksStream(realm)

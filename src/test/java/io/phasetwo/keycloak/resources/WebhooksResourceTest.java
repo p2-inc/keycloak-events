@@ -15,6 +15,8 @@ import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
@@ -24,6 +26,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.broker.provider.util.SimpleHttp;
+import org.keycloak.util.JsonSerialization;
 
 @JBossLog
 public class WebhooksResourceTest {
@@ -192,15 +195,32 @@ public class WebhooksResourceTest {
     Thread.sleep(2500l);
 
     // check the handler for the event, after a delay
-    assertNotNull(body.get());
+    String webhookPaylod = body.get();
+    assertNotNull(webhookPaylod);
     assertThat(cnt.get(), is(1));
     assertThat(body.get(), containsString("abc123"));
+    Map ev = JsonSerialization.readValue(webhookPaylod, Map.class);
+    assertThat(ev.get("resourceType"), is("USER"));
+
     // check hmac
     String sha =
         HttpSenderEventListenerProvider.calculateHmacSha(body.get(), "qlfwemke", "HmacSHA256");
     log.infof("hmac header %s sha %s", shaHeader.get(), sha);
     assertThat(shaHeader.get(), is(sha));
 
+    // cause a custom event to be send
+    createOrg(keycloak, "foo");
+
+    Thread.sleep(2500l);
+
+    // check the handler for the event, after a delay
+    webhookPaylod = body.get();
+    assertNotNull(webhookPaylod);
+    assertThat(body.get(), containsString("foo"));
+    ev = JsonSerialization.readValue(webhookPaylod, Map.class);
+    assertThat(ev.get("resourceType"), is("ORGANIZATION"));
+
+    // remove the event listener
     removeEventListener(keycloak, "master", "ext-event-webhook");
 
     server.stop();
@@ -210,5 +230,18 @@ public class WebhooksResourceTest {
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
+  }
+
+  void createOrg(Keycloak keycloak, String name) throws Exception {
+    Map<String, String> m = new HashMap<>();
+    m.put("name", name);
+    m.put("realm", "master");
+
+    SimpleHttp.Response response =
+        SimpleHttp.doPost(server.getAuthUrl() + "/realms/master/orgs", httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .json(m)
+            .asResponse();
+    assertThat(response.getStatus(), is(201));
   }
 }
