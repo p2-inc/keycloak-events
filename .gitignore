@@ -6,3 +6,6 @@ data/*
 dependency-reduced-pom.xml
 .classpath
 NOTES
+.factorypath
+.project
+.settings/

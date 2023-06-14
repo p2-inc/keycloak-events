@@ -236,6 +236,12 @@
 	  <version>${keycloak.version}</version>
 	  <scope>test</scope>
 	</dependency>
+	<dependency> <!-- so we can test webhooks for org methods -->
+	  <groupId>io.phasetwo.keycloak</groupId>
+	  <artifactId>keycloak-orgs</artifactId>
+	  <version>[0.35,)</version>
+	  <scope>test</scope>
+	</dependency>
       </dependencies>
       <build>
         <plugins>
