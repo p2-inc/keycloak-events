@@ -171,14 +171,16 @@ public class WebhooksResourceTest {
         .POST(
             "/webhook",
             (request, response) -> {
-              if (cnt.get() == 0) {
+              String b = request.body();
+              log.infof("body %s", b);
+              if (b != null && b.contains("events/config")) {
+                // skip realm update event
+              } else if (cnt.get() == 0) {
                 response.body("INTERNAL SERVER ERROR");
                 response.status(500);
                 cnt.incrementAndGet();
               } else {
-                String r = request.body();
-                log.infof("body %s", r);
-                body.set(r);
+                body.set(b);
                 shaHeader.set(request.header("X-Keycloak-Signature"));
                 response.body("OK");
                 response.status(202);
@@ -217,6 +219,9 @@ public class WebhooksResourceTest {
     assertThat(body.get(), containsString("foo"));
     ev = JsonSerialization.readValue(webhookPaylod, Map.class);
     assertThat(ev.get("resourceType"), is("ORGANIZATION"));
+
+    // remove the event listener
+    removeEventListener(keycloak, "master", "ext-event-webhook");
 
     server.stop();
 

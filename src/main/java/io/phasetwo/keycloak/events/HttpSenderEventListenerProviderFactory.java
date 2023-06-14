@@ -27,6 +27,7 @@ public class HttpSenderEventListenerProviderFactory extends MultiEventListenerPr
   @Override
   protected EventListenerProvider configure(KeycloakSession session, Map<String, Object> config) {
     HttpSenderEventListenerProvider provider = new HttpSenderEventListenerProvider(session, exec);
+    log.infof("Configuring %s with %s", provider.getClass().getName(), configToString(config));
     provider.setConfig(config);
     return provider;
   }
