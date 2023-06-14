@@ -236,6 +236,12 @@
 	  <version>${keycloak.version}</version>
 	  <scope>test</scope>
 	</dependency>
+	<dependency> <!-- if you're getting a missing dependency error here, you need to install keycloak from source locally, as this never hits maven central -->
+	  <groupId>io.phasetwo.keycloak</groupId>
+	  <artifactId>keycloak-orgs</artifactId>
+	  <version>[0.35,)</version>
+	  <scope>test</scope>
+	</dependency>
       </dependencies>
       <build>
         <plugins>
