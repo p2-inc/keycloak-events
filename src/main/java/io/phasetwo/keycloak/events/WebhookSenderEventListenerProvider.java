@@ -62,7 +62,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public void onEvent(AdminEvent adminEvent, boolean b) {
     log.debugf(
         "onEvent %s %s %s",
-        adminEvent.getOperationType(), adminEvent.getResourceType(), adminEvent.getResourcePath());
+        adminEvent.getOperationType(),
+        adminEvent.getResourceTypeAsString(),
+        adminEvent.getResourcePath());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
       runnableTrx.addRunnable(() -> processEvent(customEvent, adminEvent.getRealmId()));
