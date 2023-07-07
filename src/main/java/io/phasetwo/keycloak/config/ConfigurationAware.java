@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
 
 public interface ConfigurationAware {
 
@@ -13,10 +14,28 @@ public interface ConfigurationAware {
 
   default List<Map<String, Object>> getConfigurations(KeycloakSession session) {
     return RealmAttributesConfigLoader.loadConfigurations(
-            session, session.getContext().getRealm().getName(), getId())
+            session, getRealm(session).getName(), getId())
         .stream()
         .map(config -> RealmAttributesConfigLoader.safeConvertToMap(config))
         .collect(Collectors.toList());
+  }
+
+  static RealmModel getRealm(KeycloakSession session) {
+    if (session.getContext() == null) {
+      return null;
+    }
+    if (session.getContext().getRealm() != null) {
+      return session.getContext().getRealm();
+    }
+    if (session.getContext().getAuthenticationSession() != null
+        && session.getContext().getAuthenticationSession().getRealm() != null) {
+      return session.getContext().getAuthenticationSession().getRealm();
+    }
+    if (session.getContext().getClient() != null
+        && session.getContext().getClient().getRealm() != null) {
+      return session.getContext().getClient().getRealm();
+    }
+    return null;
   }
 
   default Map<String, Object> getConfiguration(KeycloakSession session) {
