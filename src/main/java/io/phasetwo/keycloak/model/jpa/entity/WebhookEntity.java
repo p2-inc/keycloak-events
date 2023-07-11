@@ -1,9 +1,9 @@
 package io.phasetwo.keycloak.model.jpa.entity;
 
+import jakarta.persistence.*;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
-import javax.persistence.*;
 
 @NamedQueries({
   @NamedQuery(

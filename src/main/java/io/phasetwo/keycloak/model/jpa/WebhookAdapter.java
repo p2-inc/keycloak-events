@@ -2,9 +2,9 @@ package io.phasetwo.keycloak.model.jpa;
 
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEntity;
+import jakarta.persistence.EntityManager;
 import java.util.Date;
 import java.util.Set;
-import javax.persistence.EntityManager;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
