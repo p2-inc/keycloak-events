@@ -239,7 +239,7 @@
 	<dependency> <!-- so we can test webhooks for org methods -->
 	  <groupId>io.phasetwo.keycloak</groupId>
 	  <artifactId>keycloak-orgs</artifactId>
-	  <version>[0.36,)</version>
+	  <version>[0.37,)</version>
 	  <scope>test</scope>
 	</dependency>
       </dependencies>
