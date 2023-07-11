@@ -20,6 +20,7 @@ public interface ConfigurationAware {
         .collect(Collectors.toList());
   }
 
+  /** Potential workaround for keycloak/keycloak#20105 */
   static RealmModel getRealm(KeycloakSession session) {
     if (session.getContext() == null) {
       return null;

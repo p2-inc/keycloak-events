@@ -3,7 +3,7 @@ package io.phasetwo.keycloak.model.jpa;
 import com.google.auto.service.AutoService;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.model.WebhookProviderFactory;
-import javax.persistence.EntityManager;
+import jakarta.persistence.EntityManager;
 import org.keycloak.Config.Scope;
 import org.keycloak.connections.jpa.JpaConnectionProvider;
 import org.keycloak.models.KeycloakSession;
