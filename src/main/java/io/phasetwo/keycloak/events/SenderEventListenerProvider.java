@@ -51,6 +51,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
   @Override
   public void close() {
     // close this instance of the event listener
+    log.infof("called close() on SenderEventListenerProvider");
   }
 
   class SenderTask {
@@ -103,26 +104,30 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
       log.warn("Task scheduled after shutdown initiated");
       return;
     }
-    exec.schedule(
-        () -> {
-          try {
-            send(task);
-          } catch (SenderException | IOException e) {
-            log.debug("sending exception", e);
-            if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
-            log.infof(
-                "BackOff policy is %s",
-                BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
-            long backOffTime = task.getBackOff().nextBackOffMillis();
-            if (backOffTime == BackOff.STOP) return;
-            log.infof("retrying in %d due to %s", backOffTime, e.getCause());
-            schedule(task, backOffTime, TimeUnit.MILLISECONDS);
-          } catch (Throwable t) {
-            log.warn("Uncaught Sender error", t);
-          }
-        },
-        delay,
-        unit);
+    try {
+      exec.schedule(
+          () -> {
+            try {
+              send(task);
+            } catch (SenderException | IOException e) {
+              log.warn("sending exception", e);
+              if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
+              log.infof(
+                  "BackOff policy is %s",
+                  BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
+              long backOffTime = task.getBackOff().nextBackOffMillis();
+              if (backOffTime == BackOff.STOP) return;
+              log.infof("retrying in %d due to %s", backOffTime, e.getCause());
+              schedule(task, backOffTime, TimeUnit.MILLISECONDS);
+            } catch (Throwable t) {
+              log.warn("Uncaught Sender error", t);
+            }
+          },
+          delay,
+          unit);
+    } catch (Exception e) {
+      log.warn("Error scheduling task", e);
+    }
   }
 
   abstract void send(SenderTask task) throws SenderException, IOException;
