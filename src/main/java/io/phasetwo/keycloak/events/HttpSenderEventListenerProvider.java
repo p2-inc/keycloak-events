@@ -38,7 +38,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   @Override
   BackOff getBackOff() {
     boolean retry = getBooleanOr(config, RETRY, true);
-    log.infof("Retry is %b %s", retry, getOr(config, RETRY, "[empty]"));
+    log.debugf("Retry is %b %s", retry, getOr(config, RETRY, "[empty]"));
     if (!retry) return BackOff.STOP_BACKOFF;
     else
       return new ExponentialBackOff.Builder()
@@ -70,7 +70,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected void send(
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
-    log.infof("attempting send to %s", targetUri);
+    log.debugf("attempting send to %s", targetUri);
     try (CloseableHttpClient http = HttpClients.createDefault()) {
       //      SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
       SimpleHttp request = SimpleHttp.doPost(targetUri, http).json(task.getEvent());
@@ -81,7 +81,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
                   hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
       SimpleHttp.Response response = request.asResponse();
       int status = response.getStatus();
-      log.infof("sent to %s (%d)", targetUri, status);
+      log.debugf("sent to %s (%d)", targetUri, status);
       if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
         log.warnf("Sending failure (Server response:%d)", status);
         throw new SenderException(true);
