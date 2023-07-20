@@ -16,13 +16,18 @@ public abstract class MultiEventListenerProviderFactory extends AbstractEventLis
 
   @Override
   public MultiEventListenerProvider create(KeycloakSession session) {
-    ExecutorService exec =
-        session.getProvider(ExecutorsProvider.class).getExecutor("multi-event-provider-threads");
-    List<EventListenerProvider> providers =
-        getConfigurations(session).stream()
-            .map(config -> configure(session, config))
-            .collect(Collectors.toList());
-    return new MultiEventListenerProvider(session, providers, isAsync(), exec);
+    try {
+      ExecutorService exec =
+          session.getProvider(ExecutorsProvider.class).getExecutor("multi-event-provider-threads");
+      List<EventListenerProvider> providers =
+          getConfigurations(session).stream()
+              .map(config -> configure(session, config))
+              .collect(Collectors.toList());
+      return new MultiEventListenerProvider(session, providers, isAsync(), exec);
+    } catch (Exception e) {
+      log.warn("Error configuring provider", e);
+      throw new IllegalStateException(e);
+    }
   }
 
   /**

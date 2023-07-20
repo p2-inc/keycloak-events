@@ -12,6 +12,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
@@ -36,7 +38,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   @Override
   BackOff getBackOff() {
     boolean retry = getBooleanOr(config, RETRY, true);
-    log.infof("Retry is %b %s", retry, getOr(config, RETRY, "[empty]"));
+    log.debugf("Retry is %b %s", retry, getOr(config, RETRY, "[empty]"));
     if (!retry) return BackOff.STOP_BACKOFF;
     else
       return new ExponentialBackOff.Builder()
@@ -68,18 +70,25 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected void send(
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
-    SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
-    sharedSecret.ifPresent(
-        secret ->
-            request.header(
-                "X-Keycloak-Signature",
-                hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
-    SimpleHttp.Response response = request.asResponse();
-    int status = response.getStatus();
-    log.debugf("sent to %s (%d)", targetUri, status);
-    if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
-      log.warnf("Sending failure (Server response:%d)", status);
-      throw new SenderException(true);
+    log.debugf("attempting send to %s", targetUri);
+    try (CloseableHttpClient http = HttpClients.createDefault()) {
+      //      SimpleHttp request = SimpleHttp.doPost(targetUri, session).json(task.getEvent());
+      SimpleHttp request = SimpleHttp.doPost(targetUri, http).json(task.getEvent());
+      sharedSecret.ifPresent(
+          secret ->
+              request.header(
+                  "X-Keycloak-Signature",
+                  hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+      SimpleHttp.Response response = request.asResponse();
+      int status = response.getStatus();
+      log.debugf("sent to %s (%d)", targetUri, status);
+      if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
+        log.warnf("Sending failure (Server response:%d)", status);
+        throw new SenderException(true);
+      }
+    } catch (Exception e) {
+      log.warnf(e, "Sending exception to %s", targetUri);
+      throw new SenderException(false, e);
     }
   }
 
