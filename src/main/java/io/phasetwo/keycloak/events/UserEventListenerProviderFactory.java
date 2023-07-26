@@ -12,6 +12,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
 
 /**
  * User added/removed listener base class. Just provide a user add/remove handler. Inspired by
@@ -21,6 +22,8 @@ import org.keycloak.models.UserModel;
 @JBossLog
 public abstract class UserEventListenerProviderFactory
     extends AbstractEventListenerProviderFactory {
+
+  private KeycloakSessionFactory factory;
 
   @Override
   public EventListenerProvider create(KeycloakSession session) {
@@ -53,9 +56,13 @@ public abstract class UserEventListenerProviderFactory
                 new AbstractKeycloakTransaction() {
                   @Override
                   protected void commitImpl() {
-                    RealmModel realm = session.realms().getRealm(realmId);
-                    UserModel user = session.users().getUserById(realm, userId);
-                    getUserChangedHandler().onUserAdded(session, realm, user);
+                    KeycloakModelUtils.runJobInTransaction(
+                        factory,
+                        (s) -> {
+                          RealmModel realm = s.realms().getRealm(realmId);
+                          UserModel user = s.users().getUserById(realm, userId);
+                          getUserChangedHandler().onUserAdded(s, realm, user);
+                        });
                   }
 
                   @Override
@@ -75,6 +82,7 @@ public abstract class UserEventListenerProviderFactory
 
   @Override
   public void postInit(KeycloakSessionFactory factory) {
+    this.factory = factory;
     factory.register(
         (event) -> {
           if (event instanceof UserModel.UserRemovedEvent) {
