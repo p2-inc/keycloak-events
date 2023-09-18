@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
+import io.phasetwo.keycloak.ext.resource.AbstractAdminResource;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import jakarta.validation.constraints.*;
 import jakarta.ws.rs.*;

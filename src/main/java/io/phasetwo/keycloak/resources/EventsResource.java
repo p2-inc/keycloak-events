@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.resources;
 
 import io.phasetwo.keycloak.events.WebhookSenderEventListenerProvider;
 import io.phasetwo.keycloak.events.WebhookSenderEventListenerProviderFactory;
+import io.phasetwo.keycloak.ext.resource.AbstractAdminResource;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import jakarta.validation.Valid;

@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
+import io.phasetwo.keycloak.ext.resource.AbstractAdminResource;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;

@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.events;
 
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.phasetwo.keycloak.ext.event.AbstractEventListenerProviderFactory;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.extern.jbosslog.JBossLog;

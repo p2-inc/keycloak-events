@@ -1,5 +1,7 @@
 package io.phasetwo.keycloak.events;
 
+import io.phasetwo.keycloak.ext.event.AbstractEventListenerProvider;
+import io.phasetwo.keycloak.ext.event.AbstractEventListenerProviderFactory;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;

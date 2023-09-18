@@ -2,7 +2,7 @@ package io.phasetwo.keycloak.events;
 
 import com.github.xgp.util.BackOff;
 import com.google.common.collect.Maps;
-import io.phasetwo.keycloak.config.Configurable;
+import io.phasetwo.keycloak.ext.config.Configurable;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
