@@ -86,6 +86,8 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
         log.warnf("Sending failure (Server response:%d)", status);
         throw new SenderException(true);
       }
+    } catch (SenderException se) {
+      throw se;
     } catch (Exception e) {
       log.warnf(e, "Sending exception to %s", targetUri);
       throw new SenderException(false, e);

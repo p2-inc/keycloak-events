@@ -17,10 +17,11 @@ import java.util.function.Supplier;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.services.resources.admin.AdminAuth;
 
 /** */
 @JBossLog
-public class EventsResource extends AbstractAdminResource {
+public class EventsResource extends AbstractAdminResource<AdminAuth> {
 
   public EventsResource(KeycloakSession session) {
     super(session);
