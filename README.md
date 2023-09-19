@@ -1,5 +1,4 @@
-> :rocket: **Try it for free** in the new Phase Two [keycloak managed service](https://phasetwo.io/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events
-). See the [announcement and demo video](https://phasetwo.io/blog/self-service/) for more information.
+> :rocket: **Try it for free** in the new Phase Two [keycloak managed service](https://phasetwo.io/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events). See the [announcement and demo video](https://phasetwo.io/blog/self-service/) for more information.
 
 # keycloak-events
 
@@ -22,7 +21,7 @@ The rate of breaking changes upstream in Keycloak make it impossible for us to s
 
 ## Installation
 
-The maven build can be triggered by running `mvn clean install`. It uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `providers` directory (for Quarkus) or `standalone/deployments` directory (for legacy) and rebuild/restart keycloak.
+The jars that are distributed with the `bundle` classifier have the 3rd party dependencies bundled (via the Maven shade plugin). Put the `keycloak-events-{version}-bundle` jar in the `providers/` directory of your Keycloak distribution and restart Keycloak. If you are installing several extensions that may have overlapping dependencies, it is recommended that you use the standalone jar, and manually install the dependencies, as you may run into version conflicts with the class files in the shaded jar.
 
 ## Use
 

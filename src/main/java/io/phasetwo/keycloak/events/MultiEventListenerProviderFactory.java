@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.events;
 
-import io.phasetwo.keycloak.config.ConfigurationAware;
+import io.phasetwo.keycloak.ext.config.ConfigurationAware;
+import io.phasetwo.keycloak.ext.event.AbstractEventListenerProviderFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;

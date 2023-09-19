@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
+import io.phasetwo.keycloak.ext.resource.BaseRealmResourceProvider;
 import org.keycloak.models.KeycloakSession;
 
 public class WebhooksResourceProvider extends BaseRealmResourceProvider {

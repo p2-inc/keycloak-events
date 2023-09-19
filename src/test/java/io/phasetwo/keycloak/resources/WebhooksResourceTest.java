@@ -156,14 +156,6 @@ public class WebhooksResourceTest {
     AtomicReference<String> shaHeader = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = nextFreePort(8083, 10000);
-    String id =
-        createWebhook(
-            keycloak,
-            httpClient,
-            baseUrl(),
-            "http://127.0.0.1:" + port + "/webhook",
-            "qlfwemke",
-            ImmutableSet.of("admin.*"));
 
     Server server = new Server(port);
     server
@@ -188,6 +180,15 @@ public class WebhooksResourceTest {
             });
     server.start();
     Thread.sleep(1000l);
+
+    String id =
+        createWebhook(
+            keycloak,
+            httpClient,
+            baseUrl(),
+            "http://127.0.0.1:" + port + "/webhook",
+            "qlfwemke",
+            ImmutableSet.of("admin.*"));
 
     // cause an event to be sent
     createUser(keycloak, "master", "abc123");

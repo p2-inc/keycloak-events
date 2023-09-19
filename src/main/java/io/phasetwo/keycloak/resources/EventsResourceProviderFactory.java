@@ -1,6 +1,8 @@
 package io.phasetwo.keycloak.resources;
 
 import com.google.auto.service.AutoService;
+import io.phasetwo.keycloak.events.Version;
+import io.phasetwo.keycloak.ext.util.Stats;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.models.AdminRoles;
@@ -29,7 +31,9 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
   }
 
   @Override
-  public void init(Config.Scope config) {}
+  public void init(Config.Scope config) {
+    Stats.collect(Version.getName(), Version.getVersion(), Version.getCommit());
+  }
 
   @Override
   public void postInit(KeycloakSessionFactory factory) {

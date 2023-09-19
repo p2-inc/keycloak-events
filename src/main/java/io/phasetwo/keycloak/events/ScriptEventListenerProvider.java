@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.events;
 
-import io.phasetwo.keycloak.config.Configurable;
+import io.phasetwo.keycloak.ext.config.Configurable;
+import io.phasetwo.keycloak.ext.event.Events;
 import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
