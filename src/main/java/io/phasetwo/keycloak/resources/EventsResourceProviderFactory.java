@@ -86,9 +86,13 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
   private void addRoles(ClientModel client, RoleModel parent) {
     String[] names = new String[] {ROLE_PUBLISH_EVENTS};
     for (String name : names) {
-      RoleModel role = client.addRole(name);
-      role.setDescription("${role_" + name + "}");
-      parent.addCompositeRole(role);
+      if (client.getRole(name) == null) {
+        RoleModel role = client.addRole(name);
+        role.setDescription("${role_" + name + "}");
+        parent.addCompositeRole(role);
+      } else {
+        log.infof("Role %s already exists. Skipping...", name);
+      }
     }
   }
 
