@@ -17,6 +17,7 @@ import org.keycloak.scripting.ScriptingProvider;
 @JBossLog
 public class ScriptEventListenerProvider implements EventListenerProvider, Configurable {
 
+  protected static final String SCRIPTS_DISABLED_ENV = "SCRIPTS_DISABLED";
   protected static final String ON_EVENT_FUNCTION_NAME = "onEvent";
   protected static final String ON_ADMIN_EVENT_FUNCTION_NAME = "onAdminEvent";
   protected static final String SCRIPT_CODE = "scriptCode";
@@ -24,9 +25,11 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
   protected static final String SCRIPT_DESCRIPTION = "scriptDescription";
 
   protected final KeycloakSession session;
-
+  protected final boolean scriptsDisabled;
+  
   public ScriptEventListenerProvider(KeycloakSession session) {
     this.session = session;
+    this.scriptsDisabled = Boolean.parseBoolean(System.getenv(SCRIPTS_DISABLED_ENV));
   }
 
   protected Map<String, Object> config;
@@ -38,6 +41,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
 
   @Override
   public void onEvent(Event event) {
+    if (scriptsDisabled) return;
     log.debugf("run event in js\n%s", config.get(SCRIPT_CODE).toString());
     InvocableScriptAdapter invocableScriptAdapter =
         getInvocableScriptAdapter(
@@ -54,6 +58,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
 
   @Override
   public void onEvent(AdminEvent event, boolean b) {
+    if (scriptsDisabled) return;
     log.debugf("run admin event in js\n%s", config.get(SCRIPT_CODE).toString());
     InvocableScriptAdapter invocableScriptAdapter =
         getInvocableScriptAdapter(
