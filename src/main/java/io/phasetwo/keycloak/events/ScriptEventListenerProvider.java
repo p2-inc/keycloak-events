@@ -26,7 +26,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
 
   protected final KeycloakSession session;
   protected final boolean scriptsDisabled;
-  
+
   public ScriptEventListenerProvider(KeycloakSession session) {
     this.session = session;
     this.scriptsDisabled = Boolean.parseBoolean(System.getenv(SCRIPTS_DISABLED_ENV));

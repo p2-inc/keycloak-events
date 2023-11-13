@@ -36,12 +36,12 @@ public class WebhookEntity {
   @Column(name = "ALGORITHM")
   protected String algorithm;
 
-  @ElementCollection
+  @ElementCollection(fetch = FetchType.EAGER)
   @Column(name = "VALUE")
   @CollectionTable(
       name = "WEBHOOK_EVENT_TYPES",
       joinColumns = {@JoinColumn(name = "WEBHOOK_ID")})
-  protected Set<String> eventTypes = new HashSet();
+  protected Set<String> eventTypes = new HashSet<>();
 
   @Column(name = "CREATED_BY_USER_ID")
   protected String createdBy;
