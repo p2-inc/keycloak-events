@@ -17,6 +17,7 @@ import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
@@ -59,6 +60,10 @@ public class WebhooksResourceTest {
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
+    /*
+    String r = response.asString();
+    log.infof("got webhook response %s", r);
+    */
     WebhookRepresentation rep = response.asJson(new TypeReference<WebhookRepresentation>() {});
     assertNotNull(rep);
     assertTrue(rep.isEnabled());
@@ -67,6 +72,49 @@ public class WebhooksResourceTest {
     assertNotNull(rep.getCreatedBy());
     assertThat(rep.getRealm(), is("master"));
     assertThat(rep.getUrl(), is(url));
+    assertNull(rep.getSecret());
+
+    response =
+        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .asResponse();
+    assertThat(response.getStatus(), is(204));
+  }
+
+  /** https://github.com/p2-inc/keycloak-events/issues/42 */
+  @Test
+  public void testAddGetWebhookEventTypes() throws Exception {
+    Keycloak keycloak = server.client();
+
+    String url = "https://pipedream.m.pipedream.net";
+    Set<String> types =
+        ImmutableSet.of(
+            "access.REMOVE_TOTP",
+            "access.UPDATE_TOTP",
+            "access.LOGIN",
+            "access.LOGOUT",
+            "access.REGISTER",
+            "access.UPDATE_PASSWORD",
+            "access.VERIFY_EMAIL",
+            "access.SEND_VERIFY_EMAIL",
+            "access.RESET_PASSWORD");
+    String id = createWebhook(keycloak, httpClient, baseUrl(), url, "A3jt6D8lz", types);
+
+    SimpleHttp.Response response =
+        SimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .asResponse();
+    assertThat(response.getStatus(), is(200));
+
+    WebhookRepresentation rep = response.asJson(new TypeReference<WebhookRepresentation>() {});
+    assertNotNull(rep);
+    assertTrue(rep.isEnabled());
+    assertNotNull(rep.getId());
+    assertNotNull(rep.getCreatedAt());
+    assertNotNull(rep.getCreatedBy());
+    assertThat(rep.getRealm(), is("master"));
+    assertThat(rep.getUrl(), is(url));
+    assertThat(rep.getEventTypes().size(), is(9));
     assertNull(rep.getSecret());
 
     response =
