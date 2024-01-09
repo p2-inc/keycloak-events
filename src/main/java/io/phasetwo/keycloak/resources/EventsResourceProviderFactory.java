@@ -38,7 +38,10 @@ public class EventsResourceProviderFactory implements RealmResourceProviderFacto
           if (event instanceof RealmModel.RealmPostCreateEvent) {
             realmPostCreate((RealmModel.RealmPostCreateEvent) event);
           } else if (event instanceof PostMigrationEvent) {
-            KeycloakModelUtils.runJobInTransaction(factory, this::initRoles);
+            if (System.getenv("KC_ORGS_SKIP_MIGRATION") == null) {
+              log.info("initializing event roles following migration");
+              KeycloakModelUtils.runJobInTransaction(factory, this::initRoles);
+            }
           }
         });
   }
