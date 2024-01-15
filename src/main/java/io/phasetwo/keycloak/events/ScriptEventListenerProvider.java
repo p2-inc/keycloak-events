@@ -66,7 +66,7 @@ public class ScriptEventListenerProvider implements EventListenerProvider, Confi
             bindings -> {
               bindings.put("event", event);
               bindings.put("realm", Events.getRealm(session, event));
-              bindings.put("user", Events.getUser(session, event));
+              bindings.put("authUser", Events.getAuthUser(session, event));
               bindings.put("session", session);
               bindings.put("LOG", log);
             });
