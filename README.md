@@ -39,6 +39,7 @@ The script event listener allows you to run JS event listeners in the same fashi
 - `event`: the Event or AdminEvent
 - `realm`: the RealmModel
 - `user`: the UserModel (for `onEvent` only)
+- `authUser`: the UserModel (for `onAdminEvent` only)
 - `session`: the KeycloakSession
 - `LOG`: a JBoss Logger
 
@@ -68,7 +69,9 @@ function onAdminEvent(event, representation) {
       " on " +
       event.resourceType +
       " in realm " +
-      realm.name
+      realm.name +
+      " by user " +
+      authUser.username
   );
 }
 ```
