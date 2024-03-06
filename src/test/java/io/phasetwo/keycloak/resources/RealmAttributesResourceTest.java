@@ -12,8 +12,7 @@ import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.Test;
-import org.keycloak.admin.client.Keycloak;
+import org.junit.jupiter.api.Test;
 import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog

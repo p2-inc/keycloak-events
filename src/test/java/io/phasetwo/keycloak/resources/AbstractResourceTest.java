@@ -1,20 +1,10 @@
 package io.phasetwo.keycloak.resources;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
-import jakarta.ws.rs.core.Response.Status;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import org.hamcrest.Matchers;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.junit.jupiter.api.BeforeAll;
 import org.keycloak.admin.client.Keycloak;
@@ -30,7 +20,9 @@ public abstract class AbstractResourceTest {
 
   static final String[] deps = {
     "org.keycloak:keycloak-admin-client",
-    "io.phasetwo.keycloak:keycloak-orgs"
+    "io.phasetwo.keycloak:keycloak-orgs",
+    "com.github.xgp:kitchen-sink",
+    "org.openjdk.nashorn:nashorn-core"
   };
 
   static List<File> getDeps() {

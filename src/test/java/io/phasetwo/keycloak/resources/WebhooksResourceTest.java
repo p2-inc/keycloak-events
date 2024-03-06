@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.util.JsonSerialization;
@@ -190,13 +190,13 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     AtomicReference<String> body = new AtomicReference<String>();
     AtomicReference<String> shaHeader = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
-    int port = nextFreePort(8083, 10000);
+    int port = WEBHOOK_SERVER_PORT;
     String id =
         createWebhook(
             keycloak,
             httpClient,
             baseUrl(),
-            "http://127.0.0.1:" + port + "/webhook",
+            "http://host.testcontainers.internal:" + port + "/webhook",
             "qlfwemke",
             ImmutableSet.of("admin.*"));
 
