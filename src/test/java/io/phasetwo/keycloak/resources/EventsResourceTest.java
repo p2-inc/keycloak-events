@@ -9,7 +9,6 @@ import static org.junit.Assert.assertNull;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,33 +16,29 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog
-public class EventsResourceTest {
-
-  @ClassRule public static KeycloakSuite server = KeycloakSuite.SERVER;
+public class EventsResourceTest extends AbstractResourceTest {
 
   CloseableHttpClient httpClient = HttpClients.createDefault();
 
   String webhookUrl() {
-    return server.getAuthUrl() + "/realms/master/webhooks";
+    return getAuthUrl() + "/realms/master/webhooks";
   }
 
   String eventsUrl() {
-    return server.getAuthUrl() + "/realms/master/events";
+    return getAuthUrl() + "/realms/master/events";
   }
 
   String attributesUrl() {
-    return server.getAuthUrl() + "/realms/master/attributes";
+    return getAuthUrl() + "/realms/master/attributes";
   }
 
   @Test
   public void testWebhookReceivesEvent() throws Exception {
-    Keycloak keycloak = server.client();
     // update a realm with the ext-event-webhook listener
     addEventListener(keycloak, "master", "ext-event-webhook");
 
@@ -89,8 +84,6 @@ public class EventsResourceTest {
 
   @Test
   public void testHttpConfiguredEvent() throws Exception {
-    Keycloak keycloak = server.client();
-
     AtomicInteger cnt = new AtomicInteger(0);
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
