@@ -1,6 +1,5 @@
 package io.phasetwo.keycloak.resources;
 
-
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import java.io.File;
 import java.util.ArrayList;

@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.config;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
@@ -13,8 +14,9 @@ public interface ConfigurationAware {
   String getId();
 
   default List<Map<String, Object>> getConfigurations(KeycloakSession session) {
-    return RealmAttributesConfigLoader.loadConfigurations(
-            session, getRealm(session).getName(), getId())
+    RealmModel realm = getRealm(session);
+    if (realm == null) return ImmutableList.of();
+    return RealmAttributesConfigLoader.loadConfigurations(session, realm.getName(), getId())
         .stream()
         .map(config -> RealmAttributesConfigLoader.safeConvertToMap(config))
         .collect(Collectors.toList());
