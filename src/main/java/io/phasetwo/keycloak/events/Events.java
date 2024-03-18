@@ -24,6 +24,13 @@ public class Events {
         : null;
   }
 
+  public static UserModel getAuthUser(KeycloakSession session, AdminEvent event) {
+    RealmModel realm = getRealm(session, event);
+    return (event.getAuthDetails().getUserId() != null)
+        ? session.users().getUserById(realm, event.getAuthDetails().getUserId())
+        : null;
+  }
+
   public static String toString(Event event) {
     StringBuilder sb = new StringBuilder();
     sb.append("type=");
