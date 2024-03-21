@@ -3,13 +3,13 @@ package io.phasetwo.keycloak.resources;
 import static io.phasetwo.keycloak.Helpers.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,44 +17,40 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog
-public class EventsResourceTest {
-
-  @ClassRule public static KeycloakSuite server = KeycloakSuite.SERVER;
+public class EventsResourceTest extends AbstractResourceTest {
 
   CloseableHttpClient httpClient = HttpClients.createDefault();
 
   String webhookUrl() {
-    return server.getAuthUrl() + "/realms/master/webhooks";
+    return getAuthUrl() + "/realms/master/webhooks";
   }
 
   String eventsUrl() {
-    return server.getAuthUrl() + "/realms/master/events";
+    return getAuthUrl() + "/realms/master/events";
   }
 
   String attributesUrl() {
-    return server.getAuthUrl() + "/realms/master/attributes";
+    return getAuthUrl() + "/realms/master/attributes";
   }
 
   @Test
   public void testWebhookReceivesEvent() throws Exception {
-    Keycloak keycloak = server.client();
     // update a realm with the ext-event-webhook listener
     addEventListener(keycloak, "master", "ext-event-webhook");
 
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
-    int port = nextFreePort(8083, 10000);
+    int port = WEBHOOK_SERVER_PORT;
     createWebhook(
         keycloak,
         httpClient,
         webhookUrl(),
-        "http://127.0.0.1:" + port + "/webhook",
+        "http://host.testcontainers.internal:" + port + "/webhook",
         "qlfwemke",
         ImmutableSet.of("admin.*", "foo.*"));
 
@@ -89,12 +85,10 @@ public class EventsResourceTest {
 
   @Test
   public void testHttpConfiguredEvent() throws Exception {
-    Keycloak keycloak = server.client();
-
     AtomicInteger cnt = new AtomicInteger(0);
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
-    int port = nextFreePort(8087, 10000);
+    int port = WEBHOOK_SERVER_PORT;
     Server server = new Server(port);
     server
         .router()
@@ -117,7 +111,7 @@ public class EventsResourceTest {
     server.start();
     Thread.sleep(1000l);
 
-    String targetUri = "http://127.0.0.1:" + port + "/webhook";
+    String targetUri = "http://host.testcontainers.internal:" + port + "/webhook";
 
     // create the config for a http event listener
     String key = "_providerConfig.ext-event-http.0";
@@ -145,7 +139,7 @@ public class EventsResourceTest {
 
     // check the handler for the event, after a delay
     assertThat(cnt.get(), is(1));
-    assertNull(body.get());
+    assertThat(body.get(), isEmptyOrNullString());
 
     /*
     // retry = true

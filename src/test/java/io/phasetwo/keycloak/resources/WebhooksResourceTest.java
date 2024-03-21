@@ -11,7 +11,6 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableSet;
-import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
@@ -23,21 +22,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
-public class WebhooksResourceTest {
-
-  @ClassRule public static KeycloakSuite server = KeycloakSuite.SERVER;
+public class WebhooksResourceTest extends AbstractResourceTest {
 
   CloseableHttpClient httpClient = HttpClients.createDefault();
 
   String baseUrl() {
-    return server.getAuthUrl() + "/realms/master/webhooks";
+    return getAuthUrl() + "/realms/master/webhooks";
   }
 
   String urlencode(String u) {
@@ -50,8 +46,6 @@ public class WebhooksResourceTest {
 
   @Test
   public void testAddGetWebhook() throws Exception {
-    Keycloak keycloak = server.client();
-
     String url = "https://example.com/testAddGetWebhook";
     String id = createWebhook(keycloak, httpClient, baseUrl(), url, "A3jt6D8lz", null);
 
@@ -84,8 +78,6 @@ public class WebhooksResourceTest {
   /** https://github.com/p2-inc/keycloak-events/issues/42 */
   @Test
   public void testAddGetWebhookEventTypes() throws Exception {
-    Keycloak keycloak = server.client();
-
     String url = "https://pipedream.m.pipedream.net";
     Set<String> types =
         ImmutableSet.of(
@@ -126,8 +118,6 @@ public class WebhooksResourceTest {
 
   @Test
   public void testUpdateGetWebhook() throws Exception {
-    Keycloak keycloak = server.client();
-
     String url = "https://example.com/testUpdateGetWebhook";
     String secret = "A3jt6D8lz";
     String id = createWebhook(keycloak, httpClient, baseUrl(), url, secret, null);
@@ -169,8 +159,6 @@ public class WebhooksResourceTest {
 
   @Test
   public void testRemoveWebhoook() throws Exception {
-    Keycloak keycloak = server.client();
-
     String id =
         createWebhook(
             keycloak,
@@ -195,7 +183,6 @@ public class WebhooksResourceTest {
 
   @Test
   public void testWebhookReceivesEvent() throws Exception {
-    Keycloak keycloak = server.client();
     // update a realm with the ext-event-webhook listener
     addEventListener(keycloak, "master", "ext-event-webhook");
 
@@ -203,13 +190,13 @@ public class WebhooksResourceTest {
     AtomicReference<String> body = new AtomicReference<String>();
     AtomicReference<String> shaHeader = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
-    int port = nextFreePort(8083, 10000);
+    int port = WEBHOOK_SERVER_PORT;
     String id =
         createWebhook(
             keycloak,
             httpClient,
             baseUrl(),
-            "http://127.0.0.1:" + port + "/webhook",
+            "http://host.testcontainers.internal:" + port + "/webhook",
             "qlfwemke",
             ImmutableSet.of("admin.*"));
 
@@ -286,7 +273,7 @@ public class WebhooksResourceTest {
     m.put("realm", "master");
 
     SimpleHttp.Response response =
-        SimpleHttp.doPost(server.getAuthUrl() + "/realms/master/orgs", httpClient)
+        SimpleHttp.doPost(getAuthUrl() + "/realms/master/orgs", httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(m)
             .asResponse();

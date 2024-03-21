@@ -6,27 +6,22 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.phasetwo.keycloak.KeycloakSuite;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.net.URLEncoder;
 import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.keycloak.admin.client.Keycloak;
+import org.junit.jupiter.api.Test;
 import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog
-public class RealmAttributesResourceTest {
-
-  @ClassRule public static KeycloakSuite server = KeycloakSuite.SERVER;
+public class RealmAttributesResourceTest extends AbstractResourceTest {
 
   CloseableHttpClient httpClient = HttpClients.createDefault();
 
   String baseUrl() {
-    return server.getAuthUrl() + "/realms/master/attributes";
+    return getAuthUrl() + "/realms/master/attributes";
   }
 
   String urlencode(String u) {
@@ -39,7 +34,6 @@ public class RealmAttributesResourceTest {
 
   @Test
   public void testGetAttributes() throws Exception {
-    Keycloak keycloak = server.client();
     SimpleHttp.Response response =
         SimpleHttp.doGet(baseUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
@@ -52,7 +46,6 @@ public class RealmAttributesResourceTest {
 
   @Test
   public void testAddGetAttribute() throws Exception {
-    Keycloak keycloak = server.client();
 
     String key = "_providerConfig.ext-event-script.0";
     String value =
@@ -84,8 +77,6 @@ public class RealmAttributesResourceTest {
 
   @Test
   public void testUpdateGetAttribute() throws Exception {
-    Keycloak keycloak = server.client();
-
     String key = "_providerConfig.test.1";
     String value0 = "foo";
     String value1 = "bar";
@@ -135,8 +126,6 @@ public class RealmAttributesResourceTest {
 
   @Test
   public void testRemoveAttribute() throws Exception {
-    Keycloak keycloak = server.client();
-
     String key = "_providerConfig.test.2";
     String value0 = "foo";
 

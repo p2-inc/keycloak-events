@@ -29,12 +29,11 @@
     <java.version>17</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
-    <junit.version>4.13.2</junit.version>
-    <keycloak.version>23.0.4</keycloak.version>
+    <junit.version>5.8.2</junit.version>
+    <keycloak.version>24.0.0</keycloak.version>
     <lombok.version>1.18.30</lombok.version>
     <auto-service.version>1.1.1</auto-service.version>
     <ossrh.url>https://s01.oss.sonatype.org</ossrh.url>
-    <maven.test.skip>true</maven.test.skip>
   </properties>
 
   <scm>
@@ -112,6 +111,16 @@
         <configuration>
           <javaPackage>${main.java.package}</javaPackage>
           <versionCommit>${buildNumber}</versionCommit>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.2</version>
+	<configuration>
+          <systemPropertyVariables>
+	    <keycloak-version>${keycloak.version}</keycloak-version>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
     </plugins>
@@ -203,9 +212,57 @@
 
     <!-- testing -->
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
       <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>1.19.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.dasniko</groupId>
+      <artifactId>testcontainers-keycloak</artifactId>
+      <version>3.3.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-impl-maven-archive</artifactId>
+      <version>3.2.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.4.5</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest</artifactId>
+      <version>2.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpmime</artifactId>
+      <version>4.5.13</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency> <!-- so we can test webhooks for org methods -->
+      <groupId>io.phasetwo.keycloak</groupId>
+      <artifactId>keycloak-orgs</artifactId>
+      <version>[0.61,)</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -216,38 +273,4 @@
     </dependency>
   </dependencies>
 
-  <profiles>
-    <profile>
-      <id>test</id>
-      <properties>
-	<maven.test.skip>false</maven.test.skip>
-      </properties>
-      <dependencies>
-	<dependency> <!-- if you're getting a missing dependency error here, you need to install keycloak from source locally, as this never hits maven central -->
-	  <groupId>org.keycloak</groupId>
-	  <artifactId>keycloak-testsuite-utils</artifactId>
-	  <version>${keycloak.version}</version>
-	  <scope>test</scope>
-	</dependency>
-	<dependency> <!-- so we can test webhooks for org methods -->
-	  <groupId>io.phasetwo.keycloak</groupId>
-	  <artifactId>keycloak-orgs</artifactId>
-	  <version>[0.45,)</version>
-	  <scope>test</scope>
-	</dependency>
-      </dependencies>
-      <build>
-        <plugins>
-	  <plugin>
-	    <groupId>org.apache.maven.plugins</groupId>
-	    <artifactId>maven-surefire-plugin</artifactId>
-	    <version>3.0.0-M7</version>
-	    <configuration>
-              <forkCount>1</forkCount>
-	    </configuration>
-	  </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>
