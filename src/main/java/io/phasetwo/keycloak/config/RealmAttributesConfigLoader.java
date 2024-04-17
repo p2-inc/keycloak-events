@@ -46,10 +46,15 @@ public class RealmAttributesConfigLoader {
     EntityManager em = session.getProvider(JpaConnectionProvider.class).getEntityManager();
     TypedQuery<RealmAttributeEntity> query =
         em.createQuery(
-            "SELECT ra FROM RealmAttributeEntity ra WHERE ra.name LIKE :name ORDER BY ra.name",
+            "SELECT ra FROM RealmAttributeEntity ra WHERE ra.realm.name = :realm AND ra.name LIKE :name ORDER BY ra.name",
             RealmAttributeEntity.class);
     query.setParameter("name", "" + getKey(providerId) + "%");
-    return query.getResultStream().map(RealmAttributeEntity::getValue).collect(Collectors.toList());
+    query.setParameter("realm", realm);
+    return query
+        .getResultStream()
+        .filter(e -> realm.equals(e.getRealm().getName()))
+        .map(RealmAttributeEntity::getValue)
+        .collect(Collectors.toList());
   }
 
   private static String getKey(String providerId) {
