@@ -19,6 +19,7 @@ import java.net.URISyntaxException;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.UserModel;
 import org.keycloak.services.resources.admin.AdminRoot;
 
 @JBossLog
@@ -43,7 +44,10 @@ public class WebhooksResource extends AbstractAdminResource {
     webhook.setId(w.getId());
     webhook.setEnabled(w.isEnabled());
     webhook.setUrl(w.getUrl());
-    webhook.setCreatedBy(w.getCreatedBy().getId());
+    UserModel u = w.getCreatedBy();
+    if (u != null) {
+      webhook.setCreatedBy(u.getId());
+    }
     webhook.setCreatedAt(w.getCreatedAt());
     webhook.setRealm(w.getRealm().getName());
     webhook.setEventTypes(w.getEventTypes());
