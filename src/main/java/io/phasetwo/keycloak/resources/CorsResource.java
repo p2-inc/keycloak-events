@@ -35,6 +35,7 @@ public class CorsResource {
         .allowedOrigins(auth.getToken())
         .allowedMethods(METHODS)
         .exposedHeaders("Location")
-        .auth();
+        .auth()
+        .add();
   }
 }
