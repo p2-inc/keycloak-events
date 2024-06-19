@@ -10,6 +10,7 @@ import static org.junit.Assert.assertThat;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,7 +20,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog
 public class EventsResourceTest extends AbstractResourceTest {
@@ -120,8 +120,8 @@ public class EventsResourceTest extends AbstractResourceTest {
     rep.setRealm("master");
     rep.setName(key);
     rep.setValue(value);
-    SimpleHttp.Response resp =
-        SimpleHttp.doPost(attributesUrl(), httpClient)
+    LegacySimpleHttp.Response resp =
+        LegacySimpleHttp.doPost(attributesUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
@@ -147,7 +147,7 @@ public class EventsResourceTest extends AbstractResourceTest {
     value = "{ \"targetUri\": \""+targetUri+"\", \"retry\": true }";
     rep.setValue(value);
     resp =
-        SimpleHttp.doPut(attributesUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doPut(attributesUrl() + "/" + urlencode(key), httpClient)
         .auth(keycloak.tokenManager().getAccessTokenString())
         .json(rep)
         .asResponse();
@@ -172,9 +172,9 @@ public class EventsResourceTest extends AbstractResourceTest {
     server.stop();
   }
 
-  SimpleHttp.Response sendEvent(Keycloak keycloak, Map<String, String> ev) throws Exception {
-    SimpleHttp.Response resp =
-        SimpleHttp.doPost(eventsUrl(), httpClient)
+  LegacySimpleHttp.Response sendEvent(Keycloak keycloak, Map<String, String> ev) throws Exception {
+    LegacySimpleHttp.Response resp =
+        LegacySimpleHttp.doPost(eventsUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(ev)
             .asResponse();

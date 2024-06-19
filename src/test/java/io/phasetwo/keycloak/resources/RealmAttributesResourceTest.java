@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.net.URLEncoder;
 import java.util.Map;
@@ -13,7 +14,6 @@ import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
-import org.keycloak.broker.provider.util.SimpleHttp;
 
 @JBossLog
 public class RealmAttributesResourceTest extends AbstractResourceTest {
@@ -34,8 +34,8 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
 
   @Test
   public void testGetAttributes() throws Exception {
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(baseUrl(), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doGet(baseUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     Map<String, RealmAttributeRepresentation> attributes =
@@ -55,8 +55,8 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     rep.setRealm("master");
     rep.setName(key);
     rep.setValue(value);
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(baseUrl(), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
@@ -64,7 +64,7 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     assertThat(response.getFirstHeader("Location"), containsString(key));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -85,8 +85,8 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     rep.setRealm("master");
     rep.setName(key);
     rep.setValue(value0);
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(baseUrl(), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
@@ -94,7 +94,7 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     assertThat(response.getFirstHeader("Location"), containsString(key));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -106,14 +106,14 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
 
     rep.setValue(value1);
     response =
-        SimpleHttp.doPut(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doPut(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
     assertThat(response.getStatus(), is(204));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -133,8 +133,8 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     rep.setRealm("master");
     rep.setName(key);
     rep.setValue(value0);
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(baseUrl(), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl(), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
@@ -142,7 +142,7 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     assertThat(response.getFirstHeader("Location"), containsString(key));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -153,13 +153,13 @@ public class RealmAttributesResourceTest extends AbstractResourceTest {
     assertThat(rep.getValue(), is(value0));
 
     response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(key), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(404));

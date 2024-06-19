@@ -16,7 +16,6 @@ import java.util.Set;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.RealmResource;
-import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.representations.idm.RealmEventsConfigRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 
@@ -75,8 +74,8 @@ public class Helpers {
       rep.setEventTypes(types);
     }
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(baseUrl, httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl, httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();

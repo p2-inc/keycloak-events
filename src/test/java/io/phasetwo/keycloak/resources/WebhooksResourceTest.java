@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableSet;
+import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
@@ -24,7 +25,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
-import org.keycloak.broker.provider.util.SimpleHttp;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
@@ -49,8 +49,8 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     String url = "https://example.com/testAddGetWebhook";
     String id = createWebhook(keycloak, httpClient, baseUrl(), url, "A3jt6D8lz", null);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -69,7 +69,7 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     assertNull(rep.getSecret());
 
     response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
@@ -92,8 +92,8 @@ public class WebhooksResourceTest extends AbstractResourceTest {
             "access.RESET_PASSWORD");
     String id = createWebhook(keycloak, httpClient, baseUrl(), url, "A3jt6D8lz", types);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -110,7 +110,7 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     assertNull(rep.getSecret());
 
     response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
@@ -128,15 +128,15 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     rep.setSecret(secret);
     rep.setEventTypes(ImmutableSet.of("*"));
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPut(baseUrl() + "/" + urlencode(id), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPut(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(rep)
             .asResponse();
     assertThat(response.getStatus(), is(204));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
@@ -151,7 +151,7 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     assertNull(rep.getSecret());
 
     response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
@@ -168,14 +168,14 @@ public class WebhooksResourceTest extends AbstractResourceTest {
             "A3jt6D8lz",
             null);
 
-    SimpleHttp.Response response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
 
     response =
-        SimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
+        LegacySimpleHttp.doGet(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(404));
@@ -260,8 +260,8 @@ public class WebhooksResourceTest extends AbstractResourceTest {
 
     server.stop();
 
-    SimpleHttp.Response response =
-        SimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
@@ -272,8 +272,8 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     m.put("name", name);
     m.put("realm", "master");
 
-    SimpleHttp.Response response =
-        SimpleHttp.doPost(getAuthUrl() + "/realms/master/orgs", httpClient)
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(getAuthUrl() + "/realms/master/orgs", httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .json(m)
             .asResponse();
