@@ -1,17 +1,14 @@
 package io.phasetwo.keycloak.ui;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static io.phasetwo.keycloak.webhooks.Webhooks.*;
 
 import com.google.auto.service.AutoService;
-import com.google.common.base.Joiner;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
-import org.keycloak.common.util.MultivaluedHashMap;
 import org.keycloak.component.ComponentModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -31,24 +28,6 @@ public class WebhookAdminUiPage implements UiPageProvider, UiPageProviderFactory
   // the crud componentModel methods are on the RealmModel
   // we'll need to update the ComponentModel from the webhook resource methods
 
-  static String mapToString(Map<String, List<String>> config) {
-    if (config == null) return "[]";
-    else return "[" + Joiner.on(",").withKeyValueSeparator("=").join(config) + "]";
-  }
-
-  static String componentModelToString(ComponentModel c) {
-    StringBuilder o = new StringBuilder();
-    o.append("id=").append(c.getId()).append(", ");
-    o.append("name=").append(c.getName()).append(", ");
-    o.append("parentId=").append(c.getParentId()).append(", ");
-    o.append("providerId=").append(c.getProviderId()).append(", ");
-    o.append("providerType=").append(c.getProviderType()).append(", ");
-    o.append("subType=").append(c.getSubType()).append(", ");
-    //    o.append("hasNote=").append(""+c.hasNote()).append(", ");
-    o.append("config=").append(mapToString(c.getConfig()));
-    return o.toString();
-  }
-
   @Override
   public void onCreate(KeycloakSession session, RealmModel realm, ComponentModel model) {
     // Called after a component is created
@@ -58,31 +37,6 @@ public class WebhookAdminUiPage implements UiPageProvider, UiPageProviderFactory
     WebhookModel w = webhooks.createWebhook(realm, model.get("url"));
     mergeWebhook(w, model);
   }
-
-  // put the ComponentModel values INTO the WebhookModel
-  static void mergeWebhook(WebhookModel w, ComponentModel c) {
-    w.setUrl(c.get("url"));
-    w.setEnabled(c.get("enabled", true));
-    List<String> evts = c.getConfig().get("eventTypes");
-    if (evts != null && evts.size() > 0) {
-      w.removeEventTypes();
-      evts.forEach(t -> w.addEventType(t));
-    }
-    String secret = c.get("secret");
-    if (!isNullOrEmpty(secret)) {
-      w.setSecret(secret);
-    }
-    String algorithm = c.get("algorithm");
-    if (!isNullOrEmpty(algorithm)) {
-      w.setAlgorithm(algorithm);
-    } else {
-      w.setAlgorithm("HmacSHA256");
-    }
-    w.setComponentId(c.getId());
-  }
-
-  // put the WebhookModel values INTO the ComponentModel
-  static void mergeComponent(ComponentModel c, WebhookModel w) {}
 
   @Override
   public void onUpdate(
@@ -138,32 +92,14 @@ public class WebhookAdminUiPage implements UiPageProvider, UiPageProviderFactory
                         .filter(w -> isNullOrEmpty(w.getComponentId()))
                         .forEach(
                             w -> {
-                              createComponentForWebhook(session, realm, w);
+                              ComponentModel c = createComponentForWebhook(session, realm, w);
+                              c = realm.addComponentModel(c);
+                              log.debugf(
+                                  "Added ComponentModel with id %s for webhook %s", c.getId(), w);
+                              w.setComponentId(c.getId());
                             });
                   });
         });
-  }
-
-  void createComponentForWebhook(KeycloakSession session, RealmModel r, WebhookModel w) {
-    ComponentModel c = new ComponentModel();
-    c.setId(KeycloakModelUtils.generateId());
-    c.setParentId(r.getId());
-    c.setProviderId(getId());
-    c.setProviderType("org.keycloak.services.ui.extend.UiPageProvider");
-    // config
-    c.put("url", w.getUrl());
-    c.put("enabled", w.isEnabled());
-    c.put("secret", w.getSecret());
-    c.put("algorithm", w.getAlgorithm());
-    // - eventTypes
-    MultivaluedHashMap<String, String> config = c.getConfig();
-    if (config == null) config = new MultivaluedHashMap<String, String>();
-    final List<String> evts = new ArrayList<String>();
-    if (w.getEventTypes() != null && w.getEventTypes().size() > 0) {
-      w.getEventTypes().forEach(t -> evts.add(t));
-    }
-    config.put("eventTypes", evts);
-    c.setConfig(config);
   }
 
   @Override
@@ -171,7 +107,7 @@ public class WebhookAdminUiPage implements UiPageProvider, UiPageProviderFactory
 
   @Override
   public String getId() {
-    return "Webhooks";
+    return WEBHOOKS_ADMIN_UI_PROVIDER_ID;
   }
 
   @Override
