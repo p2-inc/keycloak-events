@@ -104,4 +104,14 @@ public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
   public void removeEventTypes() {
     webhook.getEventTypes().clear();
   }
+
+  @Override
+  public String getComponentId() {
+    return webhook.getComponentId();
+  }
+
+  @Override
+  public void setComponentId(String componentId) {
+    webhook.setComponentId(componentId);
+  }
 }

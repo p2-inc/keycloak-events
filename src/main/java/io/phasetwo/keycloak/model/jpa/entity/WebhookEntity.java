@@ -10,6 +10,10 @@ import java.util.Set;
       name = "getWebhooksByRealmId",
       query = "SELECT w FROM WebhookEntity w WHERE w.realmId = :realmId"),
   @NamedQuery(
+      name = "getWebhookByComponentId",
+      query =
+          "SELECT w FROM WebhookEntity w WHERE w.realmId = :realmId AND w.componentId = :componentId"),
+  @NamedQuery(
       name = "removeAllWebhooks",
       query = "DELETE FROM WebhookEntity w WHERE w.realmId = :realmId")
 })
@@ -35,6 +39,9 @@ public class WebhookEntity {
 
   @Column(name = "ALGORITHM")
   protected String algorithm;
+
+  @Column(name = "COMPONENT_ID")
+  protected String componentId;
 
   @ElementCollection(fetch = FetchType.EAGER)
   @Column(name = "VALUE")
@@ -101,6 +108,14 @@ public class WebhookEntity {
 
   public void setAlgorithm(String algorithm) {
     this.algorithm = algorithm;
+  }
+
+  public String getComponentId() {
+    return componentId;
+  }
+
+  public void setComponentId(String componentId) {
+    this.componentId = componentId;
   }
 
   public Set<String> getEventTypes() {
