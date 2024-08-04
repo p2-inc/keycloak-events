@@ -23,12 +23,21 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
+  public WebhookModel createWebhook(RealmModel realm, String url) {
+    return create(realm, url, null);
+  }
+
+  @Override
   public WebhookModel createWebhook(RealmModel realm, String url, UserModel createdBy) {
+    return create(realm, url, createdBy.getId());
+  }
+
+  private WebhookModel create(RealmModel realm, String url, String createdById) {
     WebhookEntity e = new WebhookEntity();
     e.setId(KeycloakModelUtils.generateId());
     e.setRealmId(realm.getId());
     e.setUrl(url);
-    e.setCreatedBy(createdBy.getId());
+    e.setCreatedBy(createdById);
     em.persist(e);
     em.flush();
     WebhookModel webhook = new WebhookAdapter(session, realm, em, e);
@@ -43,6 +52,15 @@ public class JpaWebhookProvider implements WebhookProvider {
     } else {
       return null;
     }
+  }
+
+  @Override
+  public WebhookModel getWebhookByComponentId(RealmModel realm, String componentId) {
+    TypedQuery<WebhookEntity> query =
+        em.createNamedQuery("getWebhookByComponentId", WebhookEntity.class);
+    query.setParameter("realmId", realm.getId());
+    query.setParameter("componentId", componentId);
+    return new WebhookAdapter(session, realm, em, query.getSingleResult());
   }
 
   @Override
