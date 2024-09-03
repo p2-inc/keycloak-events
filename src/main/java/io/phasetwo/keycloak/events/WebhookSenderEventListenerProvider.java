@@ -162,7 +162,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     // add always missing agent username
     ExtendedAuthDetails extendedAuthDetails = extendedAdminEvent.getAuthDetails();
     if (!Strings.isNullOrEmpty(extendedAuthDetails.getUserId())) {
-      UserModel user = session.users().getUserById(realm, extendedAuthDetails.getUserId());
+      RealmModel authRealm = session.realms().getRealm(adminEvent.getAuthDetails().getRealmId());
+      UserModel user = session.users().getUserById(authRealm, extendedAuthDetails.getUserId());
       extendedAuthDetails.setUsername(user.getUsername());
     }
 
