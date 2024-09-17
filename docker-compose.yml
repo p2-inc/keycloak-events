@@ -1,0 +1,22 @@
+version: '3'
+
+volumes:
+  h2_data:
+    driver: local
+
+services:
+  keycloak:
+    image: quay.io/phasetwo/keycloak-crdb:25.0.1
+    volumes:
+      - h2_data:/opt/keycloak/data
+      - ${PWD}/target/keycloak-events-0.31-SNAPSHOT.jar:/opt/keycloak/providers/io.phasetwo.keycloak-keycloak-events-0.31.jar
+    environment:
+      KC_HTTP_RELATIVE_PATH: /auth
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_LOG_LEVEL: INFO,io.phasetwo.keycloak:DEBUG
+      KC_FEATURES: declarative-ui,login2
+      KC_FEATURES_DISABLED: organization
+    ports:
+      - 8080:8080
+    entrypoint: /opt/keycloak/bin/kc.sh start-dev
