@@ -23,6 +23,10 @@ The rate of breaking changes upstream in Keycloak make it impossible for us to s
 
 The maven build can be triggered by running `mvn clean install`. It uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `providers` directory (for Quarkus) or `standalone/deployments` directory (for legacy) and rebuild/restart keycloak.
 
+### Releases
+
+You can also download a release jar directly from [Maven Central](https://central.sonatype.com/artifact/io.phasetwo.keycloak/keycloak-events).
+
 ## Use
 
 The `EventListenerProvider` implementations in this library rely on two utilities packaged within.
