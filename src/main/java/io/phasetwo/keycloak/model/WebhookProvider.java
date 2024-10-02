@@ -7,9 +7,13 @@ import org.keycloak.provider.Provider;
 
 public interface WebhookProvider extends Provider {
 
+  WebhookModel createWebhook(RealmModel realm, String url);
+
   WebhookModel createWebhook(RealmModel realm, String url, UserModel createdBy);
 
   WebhookModel getWebhookById(RealmModel realm, String id);
+
+  WebhookModel getWebhookByComponentId(RealmModel realm, String componentId);
 
   Stream<WebhookModel> getWebhooksStream(RealmModel realm, Integer firstResult, Integer maxResults);
 

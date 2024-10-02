@@ -151,7 +151,13 @@ Enable webhook events in the Admin UI by going to (Configure) Realm Settings > E
 
 #### Managing webhook subscriptions
 
-Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-events` and `manage-events` permissions.
+##### Using the admin UI
+
+If you have the `declarative-ui:v1` feature enabled in Keycloak, you will see a **Webhooks** menu item in the **Configure** section of the Keycloak Admin UI. This will allow you to create and manage webhooks from the Admin UI. Please note that this is currently using an experimental feature in Keycloak, and may not be a permanent way to manage webhooks.
+
+##### Using the API
+
+Webhooks can also be managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-events` and `manage-events` permissions.
 
 | Path                               | Method   | Payload        | Returns                 | Description    |
 | ---------------------------------- | -------- | -------------- | ----------------------- | -------------- |
@@ -215,4 +221,4 @@ There is a special catch-all webhook that can be used by system owners to always
 
 ---
 
-All documentation, source code and other files in this repository are Copyright 2023 Phase Two, Inc.
+All documentation, source code and other files in this repository are Copyright 2024 Phase Two, Inc.
