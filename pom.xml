@@ -29,9 +29,9 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
-    <junit.version>5.8.2</junit.version>
-    <keycloak.version>25.0.0</keycloak.version>
-    <lombok.version>1.18.32</lombok.version>
+    <junit.version>5.11.2</junit.version>
+    <keycloak.version>26.0.0</keycloak.version>
+    <lombok.version>1.18.34</lombok.version>
     <auto-service.version>1.1.1</auto-service.version>
     <ossrh.url>https://s01.oss.sonatype.org</ossrh.url>
   </properties>
@@ -237,19 +237,19 @@
     <dependency>
       <groupId>com.github.dasniko</groupId>
       <artifactId>testcontainers-keycloak</artifactId>
-      <version>3.3.0</version>
+      <version>3.5.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.jboss.shrinkwrap.resolver</groupId>
       <artifactId>shrinkwrap-resolver-impl-maven-archive</artifactId>
-      <version>3.2.1</version>
+      <version>3.3.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.4.5</version>
+      <version>1.5.10</version>
       <scope>test</scope>
     </dependency>
     <dependency>
