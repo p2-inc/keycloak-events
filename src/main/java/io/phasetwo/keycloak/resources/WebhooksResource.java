@@ -1,5 +1,7 @@
 package io.phasetwo.keycloak.resources;
 
+import static io.phasetwo.keycloak.webhooks.Webhooks.*;
+
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
@@ -18,8 +20,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.component.ComponentModel;
 import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.UserModel;
 import org.keycloak.services.resources.admin.AdminRoot;
 
 @JBossLog
@@ -39,30 +41,20 @@ public class WebhooksResource extends AbstractAdminResource {
     return webhooks.getWebhooksStream(realm).map(w -> toRepresentation(w));
   }
 
-  private WebhookRepresentation toRepresentation(WebhookModel w) {
-    WebhookRepresentation webhook = new WebhookRepresentation();
-    webhook.setId(w.getId());
-    webhook.setEnabled(w.isEnabled());
-    webhook.setUrl(w.getUrl());
-    UserModel u = w.getCreatedBy();
-    if (u != null) {
-      webhook.setCreatedBy(u.getId());
-    }
-    webhook.setCreatedAt(w.getCreatedAt());
-    webhook.setRealm(w.getRealm().getName());
-    webhook.setEventTypes(w.getEventTypes());
-    // no secret
-    return webhook;
-  }
-
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response createWebhook(final WebhookRepresentation rep) {
     permissions.realm().requireManageEvents();
     validateWebhook(rep);
+    // create the WebhookModel
     WebhookModel w = webhooks.createWebhook(realm, rep.getUrl(), auth.getUser());
     mergeWebhook(rep, w);
-    // /auth/realms/:realm/webhooks/:id
+    // duplicate to the ComponentModel
+    ComponentModel c = createComponentForWebhook(session, realm, w);
+    c = realm.addComponentModel(c);
+    log.debugf("Added ComponentModel with id %s for webhook %s", c.getId(), w);
+    w.setComponentId(c.getId());
+    // return with Location header /auth/realms/:realm/webhooks/:id
     URI location =
         AdminRoot.realmsUrl(session.getContext().getUri())
             .path(realm.getName())
@@ -88,9 +80,28 @@ public class WebhooksResource extends AbstractAdminResource {
   public Response updateWebhook(final @PathParam("id") String id, WebhookRepresentation rep) {
     permissions.realm().requireManageEvents();
     validateWebhook(rep);
+    // update the WebhookModel
     WebhookModel w = webhooks.getWebhookById(realm, id);
     if (w == null) throw new NotFoundException(String.format("no webhook with id %s", id));
     mergeWebhook(rep, w);
+    // duplicate to the ComponentModel
+    ComponentModel c = realm.getComponent(w.getComponentId());
+    mergeComponent(c, w);
+    realm.updateComponent(c);
+    return Response.noContent().build();
+  }
+
+  @DELETE
+  @Path("{id}")
+  public Response removeWebhook(final @PathParam("id") String id) {
+    permissions.realm().requireManageEvents();
+    WebhookModel w = webhooks.getWebhookById(realm, id);
+    if (w == null) throw new NotFoundException(String.format("no webhook with id %s", id));
+    // delete the ComponentModel
+    ComponentModel c = realm.getComponent(w.getComponentId());
+    realm.removeComponent(c);
+    // delete the WebhookModel
+    webhooks.removeWebhook(realm, id);
     return Response.noContent().build();
   }
 
@@ -102,31 +113,5 @@ public class WebhooksResource extends AbstractAdminResource {
     } catch (URISyntaxException e) {
       throw new BadRequestException(rep.getUrl() + " not a URL");
     }
-  }
-
-  private void mergeWebhook(WebhookRepresentation rep, WebhookModel w) {
-    w.setUrl(rep.getUrl());
-    w.setEnabled(rep.isEnabled());
-    if (rep.getEventTypes() != null) {
-      w.removeEventTypes();
-      rep.getEventTypes().forEach(t -> w.addEventType(t));
-    }
-    if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
-      w.setSecret(rep.getSecret());
-    }
-    if (rep.getAlgorithm() != null && !"".equals(rep.getAlgorithm())) {
-      w.setAlgorithm(rep.getAlgorithm());
-    } else {
-      w.setAlgorithm("HmacSHA256");
-    }
-  }
-
-  @DELETE
-  @Path("{id}")
-  public Response removeWebhook(final @PathParam("id") String id) {
-    permissions.realm().requireManageEvents();
-    getWebhook(id); // forces a not found if it doesn't exist
-    webhooks.removeWebhook(realm, id);
-    return Response.noContent().build();
   }
 }

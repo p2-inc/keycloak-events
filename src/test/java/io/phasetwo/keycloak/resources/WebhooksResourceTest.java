@@ -16,6 +16,7 @@ import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +26,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.representations.idm.ComponentRepresentation;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
@@ -42,6 +45,18 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     } catch (Exception e) {
       return "";
     }
+  }
+
+  @Test
+  public void testComponentCrudForWebhook() throws Exception {
+    String url = "https://example.com/testAddGetWebhook";
+    String id = createWebhook(keycloak, httpClient, baseUrl(), url, "A3jt6D8lz", null);
+
+    RealmResource rr = keycloak.realm("master");
+    List<ComponentRepresentation> cs =
+        rr.components().query(rr.toRepresentation().getId(), "Webhooks");
+    assertTrue(cs.size() > 0);
+    log.infof("there are %d webhooks", cs.size());
   }
 
   @Test

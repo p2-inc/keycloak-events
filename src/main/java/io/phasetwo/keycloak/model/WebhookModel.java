@@ -36,4 +36,8 @@ public interface WebhookModel {
   void addEventType(String eventType);
 
   void removeEventTypes();
+
+  String getComponentId();
+
+  void setComponentId(String componentId);
 }

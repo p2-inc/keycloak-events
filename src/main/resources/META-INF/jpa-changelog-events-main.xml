@@ -3,5 +3,6 @@
 
   <include file="META-INF/jpa-changelog-events-20220311.xml"/>
   <include file="META-INF/jpa-changelog-events-20221113.xml"/>
+  <include file="META-INF/jpa-changelog-events-20240701.xml"/>
 
 </databaseChangeLog>
