@@ -12,7 +12,10 @@ import org.testcontainers.Testcontainers;
 public abstract class AbstractResourceTest {
 
   public static final String KEYCLOAK_IMAGE =
-      String.format("%s:%s", System.getProperty("image-name", "quay.io/phasetwo/keycloak-crdb"), System.getProperty("keycloak-version", "25.0.5"));
+      String.format(
+          "%s:%s",
+          System.getProperty("image-name", "quay.io/phasetwo/keycloak-crdb"),
+          System.getProperty("keycloak-version", "25.0.5"));
   public static final String REALM = "master";
   public static final String ADMIN_CLI = "admin-cli";
 

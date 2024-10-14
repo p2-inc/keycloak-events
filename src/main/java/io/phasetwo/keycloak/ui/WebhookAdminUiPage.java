@@ -4,9 +4,13 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static io.phasetwo.keycloak.webhooks.Webhooks.*;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Maps;
+import io.phasetwo.keycloak.events.Version;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.component.ComponentModel;
@@ -16,17 +20,38 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.provider.ProviderConfigurationBuilder;
+import org.keycloak.provider.ServerInfoAwareProviderFactory;
 import org.keycloak.services.ui.extend.UiPageProvider;
 import org.keycloak.services.ui.extend.UiPageProviderFactory;
 
 @JBossLog
 @AutoService(UiPageProviderFactory.class)
-public class WebhookAdminUiPage implements UiPageProvider, UiPageProviderFactory<ComponentModel> {
+public class WebhookAdminUiPage
+    implements UiPageProvider,
+        UiPageProviderFactory<ComponentModel>,
+        ServerInfoAwareProviderFactory {
 
   // in postInit do a migration of existing webhooks
   // do we need to keep track of the created component id to link the two?
   // the crud componentModel methods are on the RealmModel
   // we'll need to update the ComponentModel from the webhook resource methods
+  @Override
+  public Map<String, Object> getTypeMetadata() {
+    Map<String, Object> metaData = new HashMap<>();
+    metaData.put("displayFields", List.of("url", "eventTypes", "enabled"));
+    return metaData;
+  }
+
+  @Override
+  public Map<String, String> getOperationalInfo() {
+    Map<String, String> info = Maps.newHashMap();
+    info.put("name", Version.getName());
+    info.put("version", Version.getVersion());
+    info.put("commit", Version.getCommit());
+    info.put("vendor", Version.getVendor());
+    info.put("timestamp", Version.getTimestamp());
+    return info;
+  }
 
   @Override
   public void onCreate(KeycloakSession session, RealmModel realm, ComponentModel model) {

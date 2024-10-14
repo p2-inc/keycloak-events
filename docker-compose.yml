@@ -1,14 +1,10 @@
 version: '3'
 
-volumes:
-  h2_data:
-    driver: local
-
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:nightly
     volumes:
-      - h2_data:/opt/keycloak/data
+      #- h2_data:/opt/keycloak/data
       - ${PWD}/target/keycloak-events-0.31-SNAPSHOT.jar:/opt/keycloak/providers/io.phasetwo.keycloak-keycloak-events-0.31.jar
     environment:
       KC_HTTP_RELATIVE_PATH: /auth
