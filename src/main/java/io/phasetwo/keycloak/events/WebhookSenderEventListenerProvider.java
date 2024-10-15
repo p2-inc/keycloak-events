@@ -157,7 +157,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, AdminEvent adminEvent) {
-    RealmModel realm = session.realms().getRealm(adminEvent.getAuthDetails().getRealmId());
+    RealmModel realm = session.realms().getRealm(adminEvent.getRealmId());
     ExtendedAdminEvent extendedAdminEvent = new ExtendedAdminEvent(uid, adminEvent, realm);
     // add always missing agent username
     ExtendedAuthDetails extendedAuthDetails = extendedAdminEvent.getAuthDetails();
