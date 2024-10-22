@@ -38,7 +38,7 @@ public class WebhookSenderEventListenerProviderFactory
   @Override
   public void close() {
     try {
-      log.info("Shutting down scheduler");
+      log.debug("Shutting down scheduler");
       exec.shutdown();
     } catch (Exception e) {
       log.warn("Error in shutdown of scheduler", e);
