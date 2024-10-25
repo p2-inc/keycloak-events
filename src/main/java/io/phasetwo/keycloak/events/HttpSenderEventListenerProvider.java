@@ -12,6 +12,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
@@ -69,8 +71,8 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     log.debugf("attempting send to %s", targetUri);
-    try {
-      LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, session).json(task.getEvent());
+    try (CloseableHttpClient http = HttpClients.createDefault()) {
+      LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
       sharedSecret.ifPresent(
           secret ->
               request.header(
