@@ -6,7 +6,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.net.URLEncoder;
 import java.util.Map;
@@ -14,6 +13,7 @@ import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
+import org.keycloak.broker.provider.util.LegacySimpleHttp;
 
 @JBossLog
 public class RealmAttributesResourceTest extends AbstractResourceTest {
