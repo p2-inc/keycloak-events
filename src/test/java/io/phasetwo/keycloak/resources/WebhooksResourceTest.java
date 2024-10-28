@@ -11,7 +11,6 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableSet;
-import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.net.URLEncoder;
@@ -25,6 +24,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.broker.provider.util.LegacySimpleHttp;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog

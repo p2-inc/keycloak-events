@@ -10,7 +10,6 @@ import static org.junit.Assert.assertThat;
 import com.github.xgp.http.server.Server;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.phasetwo.keycloak.LegacySimpleHttp;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,6 +19,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.admin.client.Keycloak;
+import org.keycloak.broker.provider.util.LegacySimpleHttp;
 
 @JBossLog
 public class EventsResourceTest extends AbstractResourceTest {

@@ -1,4 +1,4 @@
-package io.phasetwo.keycloak;
+package org.keycloak.broker.provider.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
