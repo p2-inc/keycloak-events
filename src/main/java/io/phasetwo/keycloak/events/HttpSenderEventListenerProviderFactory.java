@@ -27,7 +27,7 @@ public class HttpSenderEventListenerProviderFactory extends MultiEventListenerPr
   @Override
   protected EventListenerProvider configure(KeycloakSession session, Map<String, Object> config) {
     HttpSenderEventListenerProvider provider = new HttpSenderEventListenerProvider(session, exec);
-    log.infof("Configuring %s with %s", provider.getClass().getName(), configToString(config));
+    log.debugf("Configuring %s with %s", provider.getClass().getName(), configToString(config));
     provider.setConfig(config);
     return provider;
   }
@@ -42,7 +42,7 @@ public class HttpSenderEventListenerProviderFactory extends MultiEventListenerPr
   @Override
   public void close() {
     try {
-      log.info("Shutting down scheduler");
+      log.debug("Shutting down scheduler");
       exec.shutdown();
     } catch (Exception e) {
       log.warn("Error in shutdown of scheduler", e);
