@@ -36,14 +36,14 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public ExtendedAdminEvent() {}
 
-  public ExtendedAdminEvent(String uid, AdminEvent event, RealmModel realm) {
+  public ExtendedAdminEvent(String uid, AdminEvent event, RealmModel eventRealm, RealmModel authRealm) {
     this.uid = uid;
     this.type = createType(event);
 
     setTime(event.getTime());
-    setRealmId(realm.getName());
+    setRealmId(eventRealm.getName());
     setAuthDetails(event.getAuthDetails());
-    extAuthDetails.setRealmId(realm.getName());
+    extAuthDetails.setRealmId(authRealm.getName());
     setResourceType(event.getResourceType());
     setResourceTypeAsString(event.getResourceTypeAsString());
     setOperationType(event.getOperationType());
