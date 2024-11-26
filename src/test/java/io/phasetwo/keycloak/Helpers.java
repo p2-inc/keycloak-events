@@ -87,6 +87,20 @@ public class Helpers {
     return id;
   }
 
+  public static void removeWebhook(
+	      Keycloak keycloak,
+	      CloseableHttpClient httpClient,
+	      String baseUrl,
+	      String webhookId)
+	      throws Exception {
+
+	    LegacySimpleHttp.Response response =
+	        LegacySimpleHttp.doDelete(baseUrl + "/" + webhookId, httpClient)
+	            .auth(keycloak.tokenManager().getAccessTokenString())
+	            .asResponse();
+	    assertThat(response.getStatus(), is(204));
+	  }
+
   public static String urlencode(String u) {
     try {
       return URLEncoder.encode(u, "UTF-8");
