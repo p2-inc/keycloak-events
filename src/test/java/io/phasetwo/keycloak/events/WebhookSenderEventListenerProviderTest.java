@@ -95,6 +95,23 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
 	    ExtendedAdminEvent event = parseEvent(receivedPayload);
 	    assertThat(event.getRealmId(), equalTo(REALM));
 	    assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+	    // Now delete the user
+	    List<UserRepresentation> users = realm.users().search("username");
+	    assertThat(users.size(), is(1));
+	    String userId = users.getFirst().getId();
+	    userResponse = realm.users().delete(userId);
+	    assertThat(userResponse.getStatus(), is(204));
+	    
+	    Thread.sleep(1000l);
+
+     	// check the handler for the event, after a delay
+	    receivedPayload = body.get();
+	    event = parseEvent(receivedPayload);
+	    assertThat(event.getRealmId(), equalTo(REALM));
+	    assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-DELETE"));
     }
     finally {
         server.stop();
@@ -158,6 +175,23 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
 	    ExtendedAdminEvent event = parseEvent(receivedPayload);
 	    assertThat(event.getRealmId(), equalTo(TEST_REALM));
 	    assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+	    // Now delete the user
+	    List<UserRepresentation> users = realm.users().search("username");
+	    assertThat(users.size(), is(1));
+	    String userId = users.getFirst().getId();
+	    userResponse = realm.users().delete(userId);
+	    assertThat(userResponse.getStatus(), is(204));
+	    
+	    Thread.sleep(1000l);
+
+     	// check the handler for the event, after a delay
+	    receivedPayload = body.get();
+	    event = parseEvent(receivedPayload);
+	    assertThat(event.getRealmId(), equalTo(TEST_REALM));
+	    assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-DELETE"));
 
 	    // cleanup
 	    realm.remove();
@@ -262,6 +296,23 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
 	    ExtendedAdminEvent event = parseEvent(receivedPayload);
 	    assertThat(event.getRealmId(), equalTo(TEST_REALM));
 	    assertThat(event.getAuthDetails().getRealmId(), equalTo(TEST_REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+	    // Now delete the user
+	    List<UserRepresentation> users = realm.users().search("username");
+	    assertThat(users.size(), is(1));
+	    String userId = users.getFirst().getId();
+	    userResponse = realm.users().delete(userId);
+	    assertThat(userResponse.getStatus(), is(204));
+	    
+	    Thread.sleep(1000l);
+
+     	// check the handler for the event, after a delay
+	    receivedPayload = body.get();
+	    event = parseEvent(receivedPayload);
+	    assertThat(event.getRealmId(), equalTo(TEST_REALM));
+	    assertThat(event.getAuthDetails().getRealmId(), equalTo(TEST_REALM));
+	    assertThat(event.getType(), equalTo("admin.USER-DELETE"));
 
 	    // cleanup
 	    realm = keycloak.realm(TEST_REALM);
