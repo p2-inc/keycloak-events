@@ -96,6 +96,7 @@ Configuration values:
 | `backoffMaxInterval` | N | 60000 | Maximum back off time in milliseconds |
 | `backoffMultiplier` | N | 1.5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
 | `backoffRandomizationFactor` | N | 0.5 | Randomization factor (E.g. 0.5 results in a random period ranging between 50% below and 50% above the retry interval) |
+| `cloudEventEnabled` | N | false | Generate a cloud event request to Http Server |
 
 ### Adding Configuration to your EventListenerProvider
 
