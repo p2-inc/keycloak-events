@@ -36,7 +36,8 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public ExtendedAdminEvent() {}
 
-  public ExtendedAdminEvent(String uid, AdminEvent event, RealmModel eventRealm, RealmModel authRealm) {
+  public ExtendedAdminEvent(
+      String uid, AdminEvent event, RealmModel eventRealm, RealmModel authRealm) {
     this.uid = uid;
     this.type = createType(event);
 

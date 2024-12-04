@@ -58,8 +58,9 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   }
 
   Boolean getCloudEventsEnabled() {
-    return getBooleanOr(config,CLOUD_EVENTS_ENABLED, false);
+    return getBooleanOr(config, CLOUD_EVENTS_ENABLED, false);
   }
+
   Optional<String> getSharedSecret() {
     return Optional.ofNullable(config.get(SHARED_SECRET)).map(Object::toString);
   }
@@ -78,45 +79,45 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       throws SenderException, IOException {
     log.debugf("attempting send to %s", targetUri);
     try (CloseableHttpClient http = HttpClients.createDefault()) {
-        LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
-        sharedSecret.ifPresent(
-                secret ->
-                        request.header(
-                                "X-Keycloak-Signature",
-                                hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+      LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
+      sharedSecret.ifPresent(
+          secret ->
+              request.header(
+                  "X-Keycloak-Signature",
+                  hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
 
-        if (getCloudEventsEnabled()) {
-            Object eventObject = null;
-            eventObject = task.getEvent();
-            if (eventObject instanceof EventRepresentation) {
-                EventRepresentation event = (EventRepresentation) eventObject;
-                request
-                        .header("content-type", "application/json")
-                        .header("ce-specversion", "1.0")
-                        .header("ce-source", "keycloak")
-                        .header("ce-type", event.getType())
-                        .header("ce-id", event.getRealmId() +"-"+ event.getTime())
-                        .header("ce-partitionkey", event.getRealmId());
+      if (getCloudEventsEnabled()) {
+        Object eventObject = null;
+        eventObject = task.getEvent();
+        if (eventObject instanceof EventRepresentation) {
+          EventRepresentation event = (EventRepresentation) eventObject;
+          request
+              .header("content-type", "application/json")
+              .header("ce-specversion", "1.0")
+              .header("ce-source", "keycloak")
+              .header("ce-type", event.getType())
+              .header("ce-id", event.getRealmId() + "-" + event.getTime())
+              .header("ce-partitionkey", event.getRealmId());
 
-            } else {
-              AdminEventRepresentation event = (AdminEventRepresentation) eventObject;
-              request
-                      .header("content-type", "application/json")
-                      .header("ce-specversion", "1.0")
-                      .header("ce-source", "keycloak")
-                      .header("ce-type", event.getOperationType() + "-"+event.getResourceType())
-                      .header("ce-id", event.getRealmId() +"-"+ event.getTime())
-                      .header("ce-partitionkey", event.getRealmId());
-            }
+        } else {
+          AdminEventRepresentation event = (AdminEventRepresentation) eventObject;
+          request
+              .header("content-type", "application/json")
+              .header("ce-specversion", "1.0")
+              .header("ce-source", "keycloak")
+              .header("ce-type", event.getOperationType() + "-" + event.getResourceType())
+              .header("ce-id", event.getRealmId() + "-" + event.getTime())
+              .header("ce-partitionkey", event.getRealmId());
         }
+      }
 
-        LegacySimpleHttp.Response response = request.asResponse();
-        int status = response.getStatus();
-        log.debugf("sent to %s (%d)", targetUri, status);
-        if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
-            log.warnf("Sending failure (Server response:%d)", status);
-            throw new SenderException(true);
-        }
+      LegacySimpleHttp.Response response = request.asResponse();
+      int status = response.getStatus();
+      log.debugf("sent to %s (%d)", targetUri, status);
+      if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
+        log.warnf("Sending failure (Server response:%d)", status);
+        throw new SenderException(true);
+      }
     } catch (SenderException se) {
       // rethrow existing SenderException
       throw se;
