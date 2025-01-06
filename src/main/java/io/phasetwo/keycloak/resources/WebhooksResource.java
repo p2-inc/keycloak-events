@@ -32,11 +32,19 @@ public class WebhooksResource extends AbstractAdminResource {
     this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
+  private static final Integer DEFAULT_MAX_RESULTS = 100;
+
   @GET
   @Produces(MediaType.APPLICATION_JSON)
-  public Stream<WebhookRepresentation> getWebhooks() {
+  public Stream<WebhookRepresentation> getWebhooks(
+      @QueryParam("first") Integer firstResult, @QueryParam("max") Integer maxResults) {
     permissions.realm().requireViewEvents();
-    return webhooks.getWebhooksStream(realm).map(w -> toRepresentation(w));
+    firstResult = firstResult != null ? firstResult : 0;
+    maxResults =
+        (maxResults != null && maxResults <= DEFAULT_MAX_RESULTS)
+            ? maxResults
+            : DEFAULT_MAX_RESULTS;
+    return webhooks.getWebhooksStream(realm, firstResult, maxResults).map(w -> toRepresentation(w));
   }
 
   private WebhookRepresentation toRepresentation(WebhookModel w) {
