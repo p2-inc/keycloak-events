@@ -17,6 +17,8 @@ public interface WebhookProvider extends Provider {
     return getWebhooksStream(realm, null, null);
   }
 
+  Long getWebhooksCount(RealmModel realm);
+
   boolean removeWebhook(RealmModel realm, String id);
 
   void removeWebhooks(RealmModel realm);

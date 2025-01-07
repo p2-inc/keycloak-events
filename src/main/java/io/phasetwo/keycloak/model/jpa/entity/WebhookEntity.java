@@ -10,6 +10,9 @@ import java.util.Set;
       name = "getWebhooksByRealmId",
       query = "SELECT w FROM WebhookEntity w WHERE w.realmId = :realmId"),
   @NamedQuery(
+      name = "countWebhooksByRealmId",
+      query = "SELECT count(w) FROM WebhookEntity w WHERE w.realmId = :realmId"),
+  @NamedQuery(
       name = "removeAllWebhooks",
       query = "DELETE FROM WebhookEntity w WHERE w.realmId = :realmId")
 })

@@ -54,10 +54,7 @@ public class WebhooksResourceTest extends AbstractResourceTest {
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(200));
-    /*
-    String r = response.asString();
-    log.infof("got webhook response %s", r);
-    */
+
     WebhookRepresentation rep = response.asJson(new TypeReference<WebhookRepresentation>() {});
     assertNotNull(rep);
     assertTrue(rep.isEnabled());
@@ -69,10 +66,28 @@ public class WebhooksResourceTest extends AbstractResourceTest {
     assertNull(rep.getSecret());
 
     response =
+        LegacySimpleHttp.doGet(baseUrl() + "/count", httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .asResponse();
+    assertThat(response.getStatus(), is(200));
+    Long cnt = response.asJson(new TypeReference<Long>() {});
+    assertNotNull(cnt);
+    assertThat(cnt, is(1l));
+
+    response =
         LegacySimpleHttp.doDelete(baseUrl() + "/" + urlencode(id), httpClient)
             .auth(keycloak.tokenManager().getAccessTokenString())
             .asResponse();
     assertThat(response.getStatus(), is(204));
+
+    response =
+        LegacySimpleHttp.doGet(baseUrl() + "/count", httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .asResponse();
+    assertThat(response.getStatus(), is(200));
+    cnt = response.asJson(new TypeReference<Long>() {});
+    assertNotNull(cnt);
+    assertThat(cnt, is(0l));
   }
 
   /** https://github.com/p2-inc/keycloak-events/issues/42 */
