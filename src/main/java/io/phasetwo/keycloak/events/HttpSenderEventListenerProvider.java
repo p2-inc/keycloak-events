@@ -16,6 +16,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.representations.idm.AdminEventRepresentation;
+import org.keycloak.representations.idm.EventRepresentation;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
@@ -30,6 +32,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected static final String BACKOFF_MAX_INTERVAL = "backoffMaxInterval";
   protected static final String BACKOFF_MULTIPLIER = "backoffMultiplier";
   protected static final String BACKOFF_RANDOMIZATION_FACTOR = "backoffRandomizationFactor";
+  protected static final String CLOUD_EVENTS_ENABLED = "cloudEventEnabled";
 
   public HttpSenderEventListenerProvider(KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
@@ -52,6 +55,10 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   String getTargetUri() {
     return config.get(TARGET_URI).toString();
+  }
+
+  Boolean getCloudEventsEnabled() {
+    return getBooleanOr(config, CLOUD_EVENTS_ENABLED, false);
   }
 
   Optional<String> getSharedSecret() {
@@ -78,6 +85,32 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
               request.header(
                   "X-Keycloak-Signature",
                   hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+
+      if (getCloudEventsEnabled()) {
+        Object eventObject = null;
+        eventObject = task.getEvent();
+        if (eventObject instanceof EventRepresentation) {
+          EventRepresentation event = (EventRepresentation) eventObject;
+          request
+              .header("content-type", "application/json")
+              .header("ce-specversion", "1.0")
+              .header("ce-source", "keycloak")
+              .header("ce-type", event.getType())
+              .header("ce-id", event.getRealmId() + "-" + event.getTime())
+              .header("ce-partitionkey", event.getRealmId());
+
+        } else {
+          AdminEventRepresentation event = (AdminEventRepresentation) eventObject;
+          request
+              .header("content-type", "application/json")
+              .header("ce-specversion", "1.0")
+              .header("ce-source", "keycloak")
+              .header("ce-type", event.getOperationType() + "-" + event.getResourceType())
+              .header("ce-id", event.getRealmId() + "-" + event.getTime())
+              .header("ce-partitionkey", event.getRealmId());
+        }
+      }
+
       LegacySimpleHttp.Response response = request.asResponse();
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
