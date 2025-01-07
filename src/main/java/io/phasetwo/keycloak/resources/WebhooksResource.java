@@ -47,6 +47,15 @@ public class WebhooksResource extends AbstractAdminResource {
     return webhooks.getWebhooksStream(realm, firstResult, maxResults).map(w -> toRepresentation(w));
   }
 
+  @GET
+  @Path("count")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Long countWebhooks(@QueryParam("search") String searchQuery) {
+    log.debugf("countWebhooks %s %s", realm.getName(), searchQuery);
+    permissions.realm().requireViewEvents();
+    return webhooks.getWebhooksCount(realm);
+  }
+
   private WebhookRepresentation toRepresentation(WebhookModel w) {
     WebhookRepresentation webhook = new WebhookRepresentation();
     webhook.setId(w.getId());

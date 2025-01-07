@@ -57,6 +57,13 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
+  public Long getWebhooksCount(RealmModel realm) {
+    TypedQuery<Long> query = em.createNamedQuery("countWebhooksByRealmId", Long.class);
+    query.setParameter("realmId", realm.getId());
+    return query.getSingleResult();
+  }
+
+  @Override
   public boolean removeWebhook(RealmModel realm, String id) {
     WebhookEntity e = em.find(WebhookEntity.class, id);
     em.remove(e);
