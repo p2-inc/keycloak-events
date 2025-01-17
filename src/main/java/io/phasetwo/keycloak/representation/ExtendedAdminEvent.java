@@ -42,15 +42,18 @@ public class ExtendedAdminEvent extends AdminEvent {
     this.type = createType(event);
 
     setTime(event.getTime());
-    setRealmId(eventRealm.getName());
+    setRealmId(eventRealm.getId());
+    setRealmName(eventRealm.getName());
     setAuthDetails(event.getAuthDetails());
     extAuthDetails.setRealmId(authRealm.getName());
+    setDetails(event.getDetails());
     setResourceType(event.getResourceType());
     setResourceTypeAsString(event.getResourceTypeAsString());
     setOperationType(event.getOperationType());
     setResourcePath(event.getResourcePath());
     setRepresentation(event.getRepresentation());
     setError(event.getError());
+    setId(event.getId());
   }
 
   public ExtendedAdminEvent(String uid, Event event, RealmModel realm) {
@@ -67,7 +70,9 @@ public class ExtendedAdminEvent extends AdminEvent {
     setDetails(event.getDetails());
     setError(event.getError());
     setRealmId(event.getRealmId());
+    setRealmName(event.getRealmName());
     setTime(event.getTime());
+    setId(event.getId());
   }
 
   public String getUid() {

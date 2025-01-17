@@ -99,6 +99,16 @@ public class WebhooksResource extends AbstractAdminResource {
     else throw new NotFoundException(String.format("no webhook with id %s", id));
   }
 
+  @GET
+  @Path("{id}/secret")
+  @Produces(MediaType.APPLICATION_JSON)
+  public String getWebhookSecret(final @PathParam("id") String id) {
+    permissions.realm().requireViewEvents();
+    WebhookModel w = webhooks.getWebhookById(realm, id);
+    if (w != null) return w.getSecret();
+    else throw new NotFoundException(String.format("no webhook with id %s", id));
+  }
+
   @PUT
   @Path("{id}")
   @Consumes(MediaType.APPLICATION_JSON)

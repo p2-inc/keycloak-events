@@ -1,0 +1,48 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+  <!-- relationship between a webhook payload and the keycloak event -->
+  <changeSet author="garth (generated)" id="202501121734-1">
+    <createTable tableName="WEBHOOK_EVENT">
+      <column name="ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="EVENT_TYPE" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="EVENT_ID" type="VARCHAR(36)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="ADMIN_EVENT_ID" type="VARCHAR(36)">
+        <constraints nullable="true"/>
+      </column>
+      <column name="EVENT_OBJECT" type="TEXT"/>
+      <!-- JSONB override for postgres and crdb -->
+      <column name="EVENT_OBJECT" type="JSONB" databaseType="postgresql"/>
+      <column name="EVENT_OBJECT" type="JSONB" databaseType="cockroachdb"/>
+    </createTable>
+    <addPrimaryKey columnNames="ID" constraintName="WEBHOOK_EVENTPK" tableName="WEBHOOK_EVENT"/>
+    <addForeignKeyConstraint baseColumnNames="EVENT_ID" baseTableName="WEBHOOK_EVENT" referencedColumnNames="ID" referencedTableName="EVENT_ENTITY" onDelete="CASCADE"/>
+    <addForeignKeyConstraint baseColumnNames="ADMIN_EVENT_ID" baseTableName="WEBHOOK_EVENT" referencedColumnNames="ID" referencedTableName="ADMIN_EVENT_ENTITY" onDelete="CASCADE"/>
+
+    <!-- relationship between a webhook payload and a webhook definition -->
+    <createTable tableName="WEBHOOK_SEND">
+      <column name="ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="WEBHOOK_ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="WEBHOOK_EVENT_ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="SENT_AT" type="TIMESTAMP"/>
+      <column name="RETRIES" type="INT"/>
+      <column name="FINAL_STATUS" type="INT"/>
+    </createTable>
+    <addPrimaryKey columnNames="ID" constraintName="WEBHOOK_SENDPK" tableName="WEBHOOK_SEND"/>
+    <addForeignKeyConstraint baseColumnNames="WEBHOOK_ID" baseTableName="WEBHOOK_SEND" referencedColumnNames="ID" referencedTableName="WEBHOOK" onDelete="CASCADE"/>
+    <addForeignKeyConstraint baseColumnNames="WEBHOOK_EVENT_ID" baseTableName="WEBHOOK_SEND" referencedColumnNames="ID" referencedTableName="WEBHOOK_EVENT" onDelete="CASCADE"/>
+
+  </changeSet>
+</databaseChangeLog>
