@@ -2,19 +2,15 @@ package io.phasetwo.keycloak.model.jpa.entity;
 
 import jakarta.persistence.*;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 @NamedQueries({
   @NamedQuery(
-      name = "getWebhookSendsByWebhookId",
-      query = "SELECT w FROM WebhookEntity w WHERE w.realmId = :realmId"),
+      name = "getWebhookSendsByWebhook",
+      query =
+          "SELECT w FROM WebhookSendEntity w WHERE w.webhook = :webhook ORDER BY w.sentAt DESC"),
   @NamedQuery(
-      name = "countWebhooksByRealmId",
-      query = "SELECT count(w) FROM WebhookEntity w WHERE w.realmId = :realmId"),
-  @NamedQuery(
-      name = "removeAllWebhooks",
-      query = "DELETE FROM WebhookEntity w WHERE w.realmId = :realmId")
+      name = "getWebhookSendsByEvent",
+      query = "SELECT w FROM WebhookSendEntity w WHERE w.event = :event ORDER BY w.sentAt DESC")
 })
 @Entity
 @Table(name = "WEBHOOK")
@@ -30,7 +26,7 @@ public class WebhookSendEntity {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "WEBHOOK_EVENT_ID")
-  protected WebhookEventEntity webhookEvent;
+  protected WebhookEventEntity event;
 
   @Column(name = "FINAL_STATUS")
   protected Integer finalStatus;
@@ -63,12 +59,12 @@ public class WebhookSendEntity {
     this.webhook = webhook;
   }
 
-  public WebhookEventEntity getWebhookEvent() {
-    return webhookEvent;
+  public WebhookEventEntity getEvent() {
+    return event;
   }
 
-  public void setWebhookEvent(WebhookEventEntity webhookEvent) {
-    this.webhookEvent = webhookEvent;
+  public void setEvent(WebhookEventEntity event) {
+    this.event = event;
   }
 
   public Integer getFinalStatus() {

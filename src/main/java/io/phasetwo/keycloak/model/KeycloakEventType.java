@@ -1,6 +1,6 @@
 package io.phasetwo.keycloak.model;
 
 public enum KeycloakEventType {
-  EVENT,
+  USER,
   ADMIN
 }

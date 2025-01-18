@@ -2,17 +2,15 @@ package io.phasetwo.keycloak.model.jpa.entity;
 
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import jakarta.persistence.*;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
 
 @NamedQueries({
   @NamedQuery(
       name = "getWebhookEventByEventId",
-      query = "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'EVENT' AND w.eventId = :eventId"),
+      query = "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'USER' AND w.eventId = :id"),
   @NamedQuery(
       name = "getWebhookEventByAdminEventId",
-      query = "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'ADMIN' AND w.adminEventId = :adminEventId")
+      query =
+          "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'ADMIN' AND w.adminEventId = :id")
 })
 @Entity
 @Table(name = "WEBHOOK_EVENT")
@@ -25,7 +23,7 @@ public class WebhookEventEntity {
   @Column(name = "EVENT_TYPE", nullable = false, length = 36)
   @Enumerated(EnumType.STRING)
   private KeycloakEventType eventType;
-  
+
   @Column(name = "EVENT_ID", nullable = true, length = 36)
   protected String eventId;
 
