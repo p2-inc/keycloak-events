@@ -20,6 +20,11 @@ public class WebhookSendEntity {
   @Access(AccessType.PROPERTY)
   protected String id;
 
+  @Column(name = "EVENT_TYPE")
+  protected String eventType;
+
+  ;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "WEBHOOK_ID")
   protected WebhookEntity webhook;
@@ -49,6 +54,14 @@ public class WebhookSendEntity {
 
   public void setId(String id) {
     this.id = id;
+  }
+
+  public String getEventType() {
+    return this.eventType;
+  }
+
+  public void setEventType(String eventType) {
+    this.eventType = eventType;
   }
 
   public WebhookEntity getWebhook() {

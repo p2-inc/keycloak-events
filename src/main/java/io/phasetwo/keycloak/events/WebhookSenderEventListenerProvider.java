@@ -115,7 +115,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public void processEvent(ExtendedAdminEvent customEvent, String realmId) {
     processEvent(
         () -> {
-          customEvent.setUid(KeycloakModelUtils.generateId());
+          if (customEvent.getUid() == null) {
+            customEvent.setUid(KeycloakModelUtils.generateId());
+          }
           return customEvent;
         },
         realmId);
@@ -168,7 +170,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
                 "No event for [%s] %s. Skipping send storage.",
                 customEvent.getType(), customEvent.getId());
           } else {
-            WebhookSendModel webhookSend = webhooks.storeSend(webhook, event, customEvent.getUid());
+            // look it up first, as we might be here for a retry/resend
+            WebhookSendModel webhookSend = webhooks.getSendById(realm, customEvent.getUid());
+            if (webhookSend == null) {
+              webhookSend =
+                  webhooks.storeSend(webhook, event, customEvent.getUid(), customEvent.getType());
+            }
             webhookSend.setStatus(httpStatus);
             webhookSend.incrementRetries();
             webhookSend.setSentAt(new Date());
@@ -176,7 +183,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
         });
   }
 
-  private void schedule(WebhookModel webhook, ExtendedAdminEvent customEvent) {
+  public void schedule(WebhookModel webhook, ExtendedAdminEvent customEvent) {
     schedule(
         webhook.getId(),
         customEvent,

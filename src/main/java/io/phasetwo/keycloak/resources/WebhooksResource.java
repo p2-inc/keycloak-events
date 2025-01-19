@@ -1,8 +1,13 @@
 package io.phasetwo.keycloak.resources;
 
+import io.phasetwo.keycloak.events.WebhookSenderEventListenerProvider;
+import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
+import io.phasetwo.keycloak.model.WebhookSendModel;
+import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
+import io.phasetwo.keycloak.representation.WebhookSend;
 import jakarta.validation.constraints.*;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.BadRequestException;
@@ -18,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.events.EventListenerProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.resources.admin.AdminRoot;
@@ -107,6 +113,111 @@ public class WebhooksResource extends AbstractAdminResource {
     WebhookModel w = webhooks.getWebhookById(realm, id);
     if (w != null) return w.getSecret();
     else throw new NotFoundException(String.format("no webhook with id %s", id));
+  }
+
+  @GET
+  @Path("{id}/sends")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Stream<WebhookSend> getWebhookSends(
+      final @PathParam("id") String id,
+      @QueryParam("first") Integer firstResult,
+      @QueryParam("max") Integer maxResults) {
+    permissions.realm().requireViewEvents();
+    firstResult = firstResult != null ? firstResult : 0;
+    maxResults =
+        (maxResults != null && maxResults <= DEFAULT_MAX_RESULTS)
+            ? maxResults
+            : DEFAULT_MAX_RESULTS;
+    WebhookModel w = webhooks.getWebhookById(realm, id);
+    if (w == null) {
+      throw new NotFoundException(String.format("no webhook with id %s", id));
+    }
+    return webhooks
+        .getSends(realm, w, firstResult, maxResults)
+        .map(
+            s -> {
+              WebhookSend send = new WebhookSend();
+              send.setId(s.getId());
+              send.setEventType(s.getEventType());
+              send.setStatus(s.getStatus());
+              send.setStatusMessage(getStatusMessage(s.getStatus()));
+              send.setRetries(s.getRetries());
+              send.setSentAt(s.getSentAt());
+              return send;
+            });
+  }
+
+  @GET
+  @Path("{id}/sends/{sid}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public WebhookSend getWebhookSends(
+      final @PathParam("id") String id, final @PathParam("sid") String sid) {
+    permissions.realm().requireViewEvents();
+    WebhookModel w = webhooks.getWebhookById(realm, id);
+    if (w == null) {
+      throw new NotFoundException(String.format("no webhook with id %s", id));
+    }
+    WebhookSendModel s = webhooks.getSendById(realm, sid);
+    if (s == null) {
+      throw new NotFoundException(String.format("no webhook send with id %s", sid));
+    }
+    if (!w.getId().equals(s.getWebhook().getId())) {
+      throw new NotFoundException(String.format("no webhook %s and send %s", id, sid));
+    }
+    WebhookSend send = new WebhookSend();
+    send.setId(s.getId());
+    send.setEventType(s.getEventType());
+    send.setEventId(s.getEvent().getId()); //
+    send.setStatus(s.getStatus());
+    send.setStatusMessage(getStatusMessage(s.getStatus()));
+    send.setRetries(s.getRetries());
+    send.setSentAt(s.getSentAt());
+    KeycloakEventType kcType = s.getEvent().getEventType();
+    send.setKeycloakEventType(kcType.name());
+    if (kcType == KeycloakEventType.USER) {
+      send.setKeycloakEventId(s.getEvent().getEventId());
+    }
+    if (kcType == KeycloakEventType.ADMIN) {
+      send.setKeycloakEventId(s.getEvent().getAdminEventId());
+    }
+    send.setPayload(s.getEvent().rawPayload());
+    return send;
+  }
+
+  static String getStatusMessage(int statusCode) {
+    Response.Status status = Response.Status.fromStatusCode(statusCode);
+    return (status != null) ? status.toString() : "Unknown Status Code";
+  }
+
+  @POST
+  @Path("{id}/sends/{sid}/resend")
+  public Response resend(final @PathParam("id") String id, final @PathParam("sid") String sid)
+      throws Exception {
+    permissions.realm().requireManageEvents();
+    WebhookModel w = webhooks.getWebhookById(realm, id);
+    if (w == null) {
+      throw new NotFoundException(String.format("no webhook with id %s", id));
+    }
+    WebhookSendModel s = webhooks.getSendById(realm, sid);
+    if (s == null) {
+      throw new NotFoundException(String.format("no webhook send with id %s", sid));
+    }
+    if (!w.getId().equals(s.getWebhook().getId())) {
+      throw new NotFoundException(String.format("no webhook %s and send %s", id, sid));
+    }
+
+    WebhookSenderEventListenerProvider listener =
+        (WebhookSenderEventListenerProvider)
+            session.getProvider(EventListenerProvider.class, "ext-event-webhook");
+    if (listener == null) {
+      log.warn("couldn't find ext-event-webhook provider");
+    } else {
+      ExtendedAdminEvent customEvent = s.getEvent().getPayload(ExtendedAdminEvent.class);
+      customEvent.setUid(sid);
+      listener.schedule(w, customEvent);
+    }
+
+    return Response.accepted().build();
   }
 
   @PUT

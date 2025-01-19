@@ -36,6 +36,11 @@ public class WebhookSendAdapter implements WebhookSendModel, JpaModel<WebhookSen
   }
 
   @Override
+  public String getEventType() {
+    return send.getEventType();
+  }
+
+  @Override
   public WebhookModel getWebhook() {
     return new WebhookAdapter(session, realm, em, send.getWebhook());
   }

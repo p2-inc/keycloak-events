@@ -29,6 +29,9 @@
       <column name="ID" type="VARCHAR(36)">
         <constraints nullable="false"/>
       </column>
+      <column name="EVENT_TYPE" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
       <column name="WEBHOOK_ID" type="VARCHAR(36)">
         <constraints nullable="false"/>
       </column>

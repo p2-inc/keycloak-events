@@ -55,6 +55,16 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
+  public WebhookSendModel getSendById(RealmModel realm, String id) {
+    WebhookSendEntity send = em.find(WebhookSendEntity.class, id);
+    if (send != null && send.getWebhook().getRealmId().equals(realm.getId())) {
+      return new WebhookSendAdapter(session, realm, em, send);
+    } else {
+      return null;
+    }
+  }
+
+  @Override
   public Stream<WebhookModel> getWebhooksStream(
       RealmModel realm, Integer firstResult, Integer maxResults) {
     TypedQuery<WebhookEntity> query =
@@ -128,22 +138,22 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
-  public Stream<WebhookEventModel> getEventsStream(
+  public Stream<WebhookSendModel> getSends(
       RealmModel realm, WebhookModel webhook, Integer firstResult, Integer maxResults) {
     TypedQuery<WebhookSendEntity> query =
         em.createNamedQuery("getWebhookSendsByWebhook", WebhookSendEntity.class);
     query.setParameter("webhook", webhook);
     if (firstResult != null) query.setFirstResult(firstResult);
     if (maxResults != null) query.setMaxResults(maxResults);
-    return query
-        .getResultStream()
-        .map(e -> new WebhookEventAdapter(session, realm, em, e.getEvent()));
+    return query.getResultStream().map(e -> new WebhookSendAdapter(session, realm, em, e));
   }
 
   @Override
-  public WebhookSendModel storeSend(WebhookModel webhook, WebhookEventModel event, String id) {
+  public WebhookSendModel storeSend(
+      WebhookModel webhook, WebhookEventModel event, String id, String type) {
     WebhookSendEntity e = new WebhookSendEntity();
     e.setId(id);
+    e.setEventType(type);
     e.setWebhook(((WebhookAdapter) webhook).getEntity());
     e.setEvent(((WebhookEventAdapter) event).getEntity());
     em.persist(e);

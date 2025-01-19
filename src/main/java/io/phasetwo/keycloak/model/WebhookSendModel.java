@@ -7,6 +7,8 @@ public interface WebhookSendModel {
 
   String getId();
 
+  String getEventType();
+
   WebhookModel getWebhook();
 
   WebhookEventModel getEvent();

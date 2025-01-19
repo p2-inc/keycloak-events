@@ -177,6 +177,19 @@ The webhook object has this format:
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
 
+#### Storing webhook events and sends
+
+This extension contains the functionality to store and retrieve the payload that was sent to a webhook, as well as the sending status. In order to enable this functionality, you must set the SPI config variable `--spi-events-listener-ext-event-webhook-store-webhook-events=true` and ensure that your realm settings have events and admin events enabled, which causes them to be stored using the configured `EventStoreProvider`.
+
+This also enables a few additional custom REST endpoints for querying information about the payload and status of webhook sends.
+
+| Path                               | Method   | Payload        | Returns                 | Description    |
+| ---------------------------------- | -------- | -------------- | ----------------------- | -------------- |
+| `/auth/realms/:realm/webhooks/:id/sends`             | `GET`    | `first`, `max` query params for pagination | Webhook send objects (brief)       | Get webhook sends        |
+| `/auth/realms/:realm/webhooks/:id/sends/:sid`        | `GET`    |                                            | Webhook send object (with payload) | Get a webhook send       |
+| `/auth/realms/:realm/webhooks/:id/sends/:sid/resend` | `POST`   |                                            | `202`                              | Resend a webhook payload |
+
+
 ##### Example
 
 To create a webhook for all events on the `master` realm:
