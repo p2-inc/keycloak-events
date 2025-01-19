@@ -81,6 +81,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       LegacySimpleHttp.Response response = request.asResponse();
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
+      doAfterSend(task, status);
       if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
         log.warnf("Sending failure (Server response:%d)", status);
         throw new SenderException(true);
@@ -93,6 +94,16 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       throw new SenderException(false, e);
     }
   }
+
+  protected final void doAfterSend(SenderTask task, int httpStatus) {
+    try {
+      afterSend(task, httpStatus);
+    } catch (Exception e) {
+      log.warn("Error afterSend", e);
+    }
+  }
+
+  protected void afterSend(SenderTask task, int httpStatus) {}
 
   protected String hmacFor(Object o, String sharedSecret, String algorithm) {
     try {

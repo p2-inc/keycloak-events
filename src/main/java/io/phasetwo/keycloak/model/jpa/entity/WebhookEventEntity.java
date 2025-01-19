@@ -6,11 +6,12 @@ import jakarta.persistence.*;
 @NamedQueries({
   @NamedQuery(
       name = "getWebhookEventByEventId",
-      query = "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'USER' AND w.eventId = :id"),
+      query =
+          "SELECT w FROM WebhookEventEntity w WHERE w.realmId = :realmId AND w.eventType = 'USER' AND w.eventId = :id"),
   @NamedQuery(
       name = "getWebhookEventByAdminEventId",
       query =
-          "SELECT w FROM WebhookEventEntity w WHERE w.eventType = 'ADMIN' AND w.adminEventId = :id")
+          "SELECT w FROM WebhookEventEntity w WHERE w.realmId = :realmId AND w.eventType = 'ADMIN' AND w.adminEventId = :id")
 })
 @Entity
 @Table(name = "WEBHOOK_EVENT")
@@ -19,6 +20,9 @@ public class WebhookEventEntity {
   @Column(name = "ID", nullable = false, length = 36)
   @Access(AccessType.PROPERTY)
   protected String id;
+
+  @Column(name = "REALM_ID", nullable = false)
+  protected String realmId;
 
   @Column(name = "EVENT_TYPE", nullable = false, length = 36)
   @Enumerated(EnumType.STRING)
@@ -39,6 +43,14 @@ public class WebhookEventEntity {
 
   public void setId(String id) {
     this.id = id;
+  }
+
+  public String getRealmId() {
+    return realmId;
+  }
+
+  public void setRealmId(String realmId) {
+    this.realmId = realmId;
   }
 
   public KeycloakEventType getEventType() {

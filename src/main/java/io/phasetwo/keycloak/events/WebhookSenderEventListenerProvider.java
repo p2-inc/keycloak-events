@@ -1,11 +1,15 @@
 package io.phasetwo.keycloak.events;
 
 import com.google.common.base.Strings;
+import io.phasetwo.keycloak.model.KeycloakEventType;
+import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
+import io.phasetwo.keycloak.model.WebhookSendModel;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,12 +35,15 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final RunnableTransaction runnableTrx;
   private final KeycloakSessionFactory factory;
 
+  private final boolean storeWebhookEvents;
+  private final WebhookProvider webhooks;
+
   private final String systemUri;
   private final String systemSecret;
   private final String systemAlgorithm;
 
   public WebhookSenderEventListenerProvider(
-      KeycloakSession session, ScheduledExecutorService exec) {
+      KeycloakSession session, ScheduledExecutorService exec, boolean storeWebhookEvents) {
     super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
@@ -45,6 +52,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
     this.systemAlgorithm = System.getenv(WEBHOOK_ALGORITHM_ENV);
+    // should we store webhook events and sends?
+    this.storeWebhookEvents = storeWebhookEvents;
+    this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
   @Override
@@ -52,6 +62,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     log.debugf("onEvent %s %s", event.getType(), event.getId());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
+      storeEvent(KeycloakEventType.USER, customEvent);
       runnableTrx.addRunnable(() -> processEvent(customEvent, event.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + event, e);
@@ -67,10 +78,37 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
         adminEvent.getResourcePath());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
+      storeEvent(KeycloakEventType.ADMIN, customEvent);
       runnableTrx.addRunnable(() -> processEvent(customEvent, adminEvent.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + adminEvent, e);
     }
+  }
+
+  private void storeEvent(KeycloakEventType type, ExtendedAdminEvent event) {
+    if (!storeWebhookEvents) {
+      log.infof("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
+      return;
+    }
+    RealmModel realm = session.realms().getRealm(event.getRealmId());
+    if (type == KeycloakEventType.USER && !realm.isEventsEnabled()) {
+      log.infof("USER events disabled for realm %s", realm.getName());
+      return;
+    }
+    if (type == KeycloakEventType.ADMIN && !realm.isAdminEventsEnabled()) {
+      log.infof("ADMIN events disabled for realm %s", realm.getName());
+      return;
+    }
+    WebhookEventModel we =
+        webhooks.storeEvent(
+            session.realms().getRealm(event.getRealmId()), type, event.getId(), event);
+    log.infof(
+        "Webhook event stored [%s] %s, %s, %s, %s",
+        we.getId(),
+        we.getRealm().getName(),
+        we.getEventType(),
+        we.getEventId(),
+        we.getAdminEventId());
   }
 
   /** Update the event with a unique uid */
@@ -98,18 +136,63 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
                   w -> {
                     ExtendedAdminEvent customEvent = supplier.get();
                     if (!enabledFor(w, customEvent)) return;
-                    schedule(customEvent, w.getUrl(), w.getSecret(), w.getAlgorithm());
+                    schedule(w, customEvent);
                   });
           // for system owner catch-all
           if (!Strings.isNullOrEmpty(systemUri)) {
-            schedule(supplier.get(), systemUri, systemSecret, systemAlgorithm);
+            schedule(null, supplier.get(), systemUri, systemSecret, systemAlgorithm);
           }
         });
   }
 
+  @Override
+  protected void afterSend(final SenderTask task, final int httpStatus) {
+    if (task.getProperties().get("webhookId") == null) return;
+    final ExtendedAdminEvent customEvent = (ExtendedAdminEvent) task.getEvent();
+    KeycloakModelUtils.runJobInTransaction(
+        factory,
+        (session) -> {
+          RealmModel realm = session.realms().getRealm(customEvent.getRealmId());
+          WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
+          WebhookModel webhook =
+              webhooks.getWebhookById(realm, task.getProperties().get("webhookId"));
+          WebhookEventModel event =
+              webhooks.getEvent(
+                  realm,
+                  customEvent.getType().startsWith("admin.")
+                      ? KeycloakEventType.ADMIN
+                      : KeycloakEventType.USER,
+                  customEvent.getId());
+          if (event == null) {
+            log.infof(
+                "No event for [%s] %s. Skipping send storage.",
+                customEvent.getType(), customEvent.getId());
+          } else {
+            WebhookSendModel webhookSend = webhooks.storeSend(webhook, event, customEvent.getUid());
+            webhookSend.setStatus(httpStatus);
+            webhookSend.incrementRetries();
+            webhookSend.setSentAt(new Date());
+          }
+        });
+  }
+
+  private void schedule(WebhookModel webhook, ExtendedAdminEvent customEvent) {
+    schedule(
+        webhook.getId(),
+        customEvent,
+        webhook.getUrl(),
+        webhook.getSecret(),
+        webhook.getAlgorithm());
+  }
+
   private void schedule(
-      ExtendedAdminEvent customEvent, String url, String secret, String algorithm) {
+      String webhookId,
+      ExtendedAdminEvent customEvent,
+      String url,
+      String secret,
+      String algorithm) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
+    task.getProperties().put("webhookId", webhookId);
     task.getProperties().put("url", url);
     task.getProperties().put("secret", secret);
     task.getProperties().put("algorithm", algorithm);

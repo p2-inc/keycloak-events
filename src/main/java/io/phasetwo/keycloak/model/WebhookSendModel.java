@@ -11,9 +11,15 @@ public interface WebhookSendModel {
 
   WebhookEventModel getEvent();
 
-  Integer getFinalStatus();
+  Integer getStatus();
+
+  void setStatus(Integer status);
 
   Integer getRetries();
 
+  void incrementRetries();
+
   Date getSentAt();
+
+  void setSentAt(Date sentAt);
 }

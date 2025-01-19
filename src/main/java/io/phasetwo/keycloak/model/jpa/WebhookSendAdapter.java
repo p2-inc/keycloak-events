@@ -46,8 +46,13 @@ public class WebhookSendAdapter implements WebhookSendModel, JpaModel<WebhookSen
   }
 
   @Override
-  public Integer getFinalStatus() {
-    return send.getFinalStatus();
+  public Integer getStatus() {
+    return send.getStatus();
+  }
+
+  @Override
+  public void setStatus(Integer status) {
+    send.setStatus(status);
   }
 
   @Override
@@ -56,7 +61,19 @@ public class WebhookSendAdapter implements WebhookSendModel, JpaModel<WebhookSen
   }
 
   @Override
+  public void incrementRetries() {
+    int r = 0;
+    if (send.getRetries() != null) r = send.getRetries();
+    send.setRetries(r + 1);
+  }
+
+  @Override
   public Date getSentAt() {
     return send.getSentAt();
+  }
+
+  @Override
+  public void setSentAt(Date sentAt) {
+    send.setSentAt(sentAt);
   }
 }

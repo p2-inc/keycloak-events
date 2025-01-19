@@ -11,12 +11,16 @@ import io.phasetwo.keycloak.model.jpa.entity.WebhookSendEntity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
+import java.io.IOException;
 import java.util.stream.Stream;
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.util.JsonSerialization;
 
+@JBossLog
 public class JpaWebhookProvider implements WebhookProvider {
 
   protected final KeycloakSession session;
@@ -84,12 +88,33 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
+  public WebhookEventModel storeEvent(
+      RealmModel realm, KeycloakEventType type, String id, Object eventObject) {
+    WebhookEventEntity e = new WebhookEventEntity();
+    e.setId(KeycloakModelUtils.generateId());
+    e.setRealmId(realm.getId());
+    e.setEventType(type);
+    if (type == KeycloakEventType.USER) e.setEventId(id);
+    if (type == KeycloakEventType.ADMIN) e.setAdminEventId(id);
+    try {
+      e.setEventObject(JsonSerialization.writeValueAsString(eventObject));
+    } catch (IOException ioe) {
+      log.warn("Error serializing event object", ioe);
+    }
+    em.persist(e);
+    em.flush();
+    WebhookEventModel event = new WebhookEventAdapter(session, realm, em, e);
+    return event;
+  }
+
+  @Override
   public WebhookEventModel getEvent(RealmModel realm, KeycloakEventType type, String id) {
     String named =
         (type == KeycloakEventType.USER)
             ? "getWebhookEventByEventId"
             : "getWebhookEventByAdminEventId";
     TypedQuery<WebhookEventEntity> query = em.createNamedQuery(named, WebhookEventEntity.class);
+    query.setParameter("realmId", realm.getId());
     query.setParameter("id", id);
     try {
       WebhookEventEntity event = query.getSingleResult();
@@ -97,6 +122,7 @@ public class JpaWebhookProvider implements WebhookProvider {
         return new WebhookEventAdapter(session, realm, em, event);
       }
     } catch (Exception ignore) {
+      log.warnf("error fetching event %s %s %s", realm.getId(), type, id);
     }
     return null;
   }
@@ -112,6 +138,18 @@ public class JpaWebhookProvider implements WebhookProvider {
     return query
         .getResultStream()
         .map(e -> new WebhookEventAdapter(session, realm, em, e.getEvent()));
+  }
+
+  @Override
+  public WebhookSendModel storeSend(WebhookModel webhook, WebhookEventModel event, String id) {
+    WebhookSendEntity e = new WebhookSendEntity();
+    e.setId(id);
+    e.setWebhook(((WebhookAdapter) webhook).getEntity());
+    e.setEvent(((WebhookEventAdapter) event).getEntity());
+    em.persist(e);
+    em.flush();
+    WebhookSendModel send = new WebhookSendAdapter(session, event.getRealm(), em, e);
+    return send;
   }
 
   @Override

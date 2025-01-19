@@ -7,12 +7,19 @@ import org.keycloak.provider.Provider;
 
 public interface WebhookProvider extends Provider {
 
+  /** store a webhook event * */
+  WebhookEventModel storeEvent(
+      RealmModel realm, KeycloakEventType type, String id, Object eventObject);
+
   /** given a Keycloak event, show the webhook payload */
   WebhookEventModel getEvent(RealmModel realm, KeycloakEventType type, String id);
 
   /** given a webhook, show the events that were sent to it, sorted by date (inv) */
   Stream<WebhookEventModel> getEventsStream(
       RealmModel realm, WebhookModel webhook, Integer firstResult, Integer maxResults);
+
+  /** store a webhook send * */
+  WebhookSendModel storeSend(WebhookModel webhook, WebhookEventModel event, String id);
 
   /** given a Keycloak event, show all webhook sends that were triggered */
   default Stream<WebhookSendModel> getSends(RealmModel realm, KeycloakEventType type, String id) {

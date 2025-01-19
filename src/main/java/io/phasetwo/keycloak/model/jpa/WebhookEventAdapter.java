@@ -36,6 +36,11 @@ public class WebhookEventAdapter implements WebhookEventModel, JpaModel<WebhookE
   }
 
   @Override
+  public RealmModel getRealm() {
+    return session.realms().getRealm(event.getRealmId());
+  }
+
+  @Override
   public KeycloakEventType getEventType() {
     return event.getEventType();
   }

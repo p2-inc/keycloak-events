@@ -13,7 +13,7 @@ import java.util.Date;
       query = "SELECT w FROM WebhookSendEntity w WHERE w.event = :event ORDER BY w.sentAt DESC")
 })
 @Entity
-@Table(name = "WEBHOOK")
+@Table(name = "WEBHOOK_SEND")
 public class WebhookSendEntity {
   @Id
   @Column(name = "ID", length = 36)
@@ -28,8 +28,8 @@ public class WebhookSendEntity {
   @JoinColumn(name = "WEBHOOK_EVENT_ID")
   protected WebhookEventEntity event;
 
-  @Column(name = "FINAL_STATUS")
-  protected Integer finalStatus;
+  @Column(name = "STATUS")
+  protected Integer status;
 
   @Column(name = "RETRIES")
   protected Integer retries;
@@ -67,12 +67,12 @@ public class WebhookSendEntity {
     this.event = event;
   }
 
-  public Integer getFinalStatus() {
-    return finalStatus;
+  public Integer getStatus() {
+    return status;
   }
 
-  public void setFinalStatus(Integer finalStatus) {
-    this.finalStatus = finalStatus;
+  public void setStatus(Integer status) {
+    this.status = status;
   }
 
   public Integer getRetries() {
