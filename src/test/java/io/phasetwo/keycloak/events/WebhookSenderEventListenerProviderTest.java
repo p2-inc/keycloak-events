@@ -91,7 +91,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // check the handler for the event, after a delay
       String receivedPayload = body.get();
       ExtendedAdminEvent event = parseEvent(receivedPayload);
-      assertThat(event.getRealmId(), equalTo(REALM));
+      assertThat(event.getRealmName(), equalTo(REALM));
       assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
       assertThat(event.getType(), equalTo("admin.USER-CREATE"));
 
@@ -107,7 +107,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // check the handler for the event, after a delay
       receivedPayload = body.get();
       event = parseEvent(receivedPayload);
-      assertThat(event.getRealmId(), equalTo(REALM));
+      assertThat(event.getRealmName(), equalTo(REALM));
       assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
       assertThat(event.getType(), equalTo("admin.USER-DELETE"));
     } finally {
