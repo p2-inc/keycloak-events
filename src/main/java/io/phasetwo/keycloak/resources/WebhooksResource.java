@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.resources;
 
 import io.phasetwo.keycloak.events.WebhookSenderEventListenerProvider;
 import io.phasetwo.keycloak.model.KeycloakEventType;
+import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.model.WebhookSendModel;
@@ -109,7 +110,7 @@ public class WebhooksResource extends AbstractAdminResource {
   @Path("{id}/secret")
   @Produces(MediaType.APPLICATION_JSON)
   public String getWebhookSecret(final @PathParam("id") String id) {
-    permissions.realm().requireViewEvents();
+    permissions.realm().requireManageEvents();
     WebhookModel w = webhooks.getWebhookById(realm, id);
     if (w != null) return w.getSecret();
     else throw new NotFoundException(String.format("no webhook with id %s", id));
@@ -148,9 +149,31 @@ public class WebhooksResource extends AbstractAdminResource {
   }
 
   @GET
+  @Path("payload/{type}/{kid}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public ExtendedAdminEvent getPayload(
+      final @PathParam("type") String type, final @PathParam("kid") String kid) throws Exception {
+    permissions.realm().requireViewEvents();
+
+    if (type == null || !("admin".equals(type) || "user".equals(type))) {
+      throw new BadRequestException(String.format("type %s not allowed", type));
+    }
+
+    WebhookEventModel event =
+        webhooks.getEvent(
+            realm, "admin".equals(type) ? KeycloakEventType.ADMIN : KeycloakEventType.USER, kid);
+
+    if (event == null) {
+      throw new NotFoundException(String.format("%s %s not found", type, kid));
+    }
+
+    return event.getPayload(ExtendedAdminEvent.class);
+  }
+
+  @GET
   @Path("{id}/sends/{sid}")
   @Produces(MediaType.APPLICATION_JSON)
-  public WebhookSend getWebhookSends(
+  public WebhookSend getWebhookSend(
       final @PathParam("id") String id, final @PathParam("sid") String sid) {
     permissions.realm().requireViewEvents();
     WebhookModel w = webhooks.getWebhookById(realm, id);
@@ -186,7 +209,9 @@ public class WebhooksResource extends AbstractAdminResource {
 
   static String getStatusMessage(int statusCode) {
     Response.Status status = Response.Status.fromStatusCode(statusCode);
-    return (status != null) ? status.toString() : "Unknown Status Code";
+    String statusStr =
+        (status != null) ? status.toString().replace("_", " ") : "Unknown Status Code";
+    return String.format("HTTP %d %s", statusCode, statusStr);
   }
 
   @POST
