@@ -139,6 +139,7 @@ public class WebhooksResource extends AbstractAdminResource {
             s -> {
               WebhookSend send = new WebhookSend();
               send.setId(s.getId());
+              send.setWebhookId(s.getWebhook().getId());
               send.setEventType(s.getEventType());
               send.setStatus(s.getStatus());
               send.setStatusMessage(getStatusMessage(s.getStatus()));
@@ -171,6 +172,23 @@ public class WebhooksResource extends AbstractAdminResource {
   }
 
   @GET
+  @Path("{type}/{kid}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Stream<WebhookRepresentation> getWebhooksForEvent(
+      final @PathParam("type") String type, final @PathParam("kid") String kid) throws Exception {
+    permissions.realm().requireViewEvents();
+
+    if (type == null || !("admin".equals(type) || "user".equals(type))) {
+      throw new BadRequestException(String.format("type %s not allowed", type));
+    }
+
+    return webhooks
+        .getSends(
+            realm, "admin".equals(type) ? KeycloakEventType.ADMIN : KeycloakEventType.USER, kid)
+        .map(s -> toRepresentation(s.getWebhook()));
+  }
+
+  @GET
   @Path("{id}/sends/{sid}")
   @Produces(MediaType.APPLICATION_JSON)
   public WebhookSend getWebhookSend(
@@ -189,6 +207,7 @@ public class WebhooksResource extends AbstractAdminResource {
     }
     WebhookSend send = new WebhookSend();
     send.setId(s.getId());
+    send.setWebhookId(s.getWebhook().getId());
     send.setEventType(s.getEventType());
     send.setEventId(s.getEvent().getId()); //
     send.setStatus(s.getStatus());

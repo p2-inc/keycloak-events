@@ -288,13 +288,13 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       details.setSessionId(
           session.getContext().getAuthenticationSession().getParentSession().getId());
     } catch (Exception e) {
-      log.debugf("couldn't get sessionId: %s", e.getMessage());
+      log.tracef("couldn't get sessionId: %s", e.getMessage());
     }
     try {
       details.setRealmId(
           session.getContext().getAuthenticationSession().getParentSession().getRealm().getName());
     } catch (Exception e) {
-      log.debugf("couldn't get realmId: %s", e.getMessage());
+      log.tracef("couldn't get realmId: %s", e.getMessage());
     }
     return event;
   }

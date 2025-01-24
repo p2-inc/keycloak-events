@@ -11,6 +11,9 @@ public class WebhookSend {
   @JsonProperty("type")
   private String eventType;
 
+  @JsonProperty("webhook_id")
+  private String webhookId;
+
   private Integer status;
 
   @JsonProperty("status_message")
