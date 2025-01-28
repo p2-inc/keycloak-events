@@ -142,7 +142,7 @@ public class JpaWebhookProvider implements WebhookProvider {
       RealmModel realm, WebhookModel webhook, Integer firstResult, Integer maxResults) {
     TypedQuery<WebhookSendEntity> query =
         em.createNamedQuery("getWebhookSendsByWebhook", WebhookSendEntity.class);
-    query.setParameter("webhook", webhook);
+    query.setParameter("webhook", ((WebhookAdapter) webhook).getEntity());
     if (firstResult != null) query.setFirstResult(firstResult);
     if (maxResults != null) query.setMaxResults(maxResults);
     return query.getResultStream().map(e -> new WebhookSendAdapter(session, realm, em, e));
