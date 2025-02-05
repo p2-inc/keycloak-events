@@ -88,33 +88,29 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private void storeEvent(
       KeycloakSession session, KeycloakEventType type, ExtendedAdminEvent event) {
     if (!storeWebhookEvents) {
-      log.infof("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
+      log.tracef("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
       return;
     }
     RealmModel realm = session.realms().getRealm(event.getRealmId());
     if (type == KeycloakEventType.USER && !realm.isEventsEnabled()) {
-      log.infof("USER events disabled for realm %s", realm.getName());
+      log.tracef("USER events disabled for realm %s", realm.getName());
       return;
     }
     if (type == KeycloakEventType.ADMIN && !realm.isAdminEventsEnabled()) {
-      log.infof("ADMIN events disabled for realm %s", realm.getName());
+      log.tracef("ADMIN events disabled for realm %s", realm.getName());
       return;
     }
     if (!type.keycloakNative()) {
-      log.infof("%S event. Skipping event storage.", type);
+      log.tracef("%S event. Skipping event storage.", type);
       return;
     }
 
     WebhookEventModel we =
         webhooks.storeEvent(
             session.realms().getRealm(event.getRealmId()), type, event.getId(), event);
-    log.infof(
+    log.tracef(
         "Webhook event stored [%s] %s, %s, %s, %s",
-        we.getId(),
-        we.getRealm().getName(),
-        we.getEventType(),
-        we.getEventId(),
-        we.getAdminEventId());
+        we.getId(), event.getRealmId(), we.getEventType(), we.getEventId(), we.getAdminEventId());
   }
 
   public void processEvent(ExtendedAdminEvent event, String realmId) {
@@ -125,8 +121,10 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
     processEvent(
         () -> {
-          if (event.getUid() == null) {
+          log.tracef("Checking event for UID %s", event.getUid());
+          if (Strings.isNullOrEmpty(event.getUid())) {
             event.setUid(KeycloakModelUtils.generateId());
+            log.tracef("Set UID for event %s", event.getUid());
           }
           return event;
         },
@@ -156,6 +154,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
               .forEach(
                   w -> {
                     ExtendedAdminEvent customEvent = supplier.get();
+                    log.tracef("Got custom event with UID %s", customEvent.getUid());
                     if (!enabledFor(w, customEvent)) return;
                     schedule(w, customEvent);
                   });
@@ -171,7 +170,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     if (task.getProperties().get("webhookId") == null) return;
     final ExtendedAdminEvent customEvent = (ExtendedAdminEvent) task.getEvent();
     if (!KeycloakEventType.fromTypeString(customEvent.getType()).keycloakNative()) {
-      log.infof("%s event type. Skipping send storage.", customEvent.getType());
+      log.tracef("%s event type. Skipping send storage.", customEvent.getType());
       return;
     }
     KeycloakModelUtils.runJobInTransaction(
@@ -187,7 +186,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
                   KeycloakEventType.fromTypeString(customEvent.getType()),
                   customEvent.getId());
           if (event == null) {
-            log.infof(
+            log.tracef(
                 "No event for [%s] %s. Skipping send storage.",
                 customEvent.getType(), customEvent.getId());
           } else {
