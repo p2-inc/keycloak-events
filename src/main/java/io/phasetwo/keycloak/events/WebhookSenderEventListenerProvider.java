@@ -171,7 +171,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   @Override
-  protected void afterSend(final SenderTask task, final int httpStatus) {
+  protected synchronized void afterSend(final SenderTask task, final int httpStatus) {
     if (task.getProperties().get("webhookId") == null) return;
     final ExtendedAdminEvent customEvent = (ExtendedAdminEvent) task.getEvent();
     if (!KeycloakEventType.fromTypeString(customEvent.getType()).keycloakNative()) {

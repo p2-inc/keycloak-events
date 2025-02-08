@@ -226,11 +226,15 @@ public class WebhooksResource extends AbstractAdminResource {
     return send;
   }
 
-  static String getStatusMessage(int statusCode) {
+  private static final String UNKNOWN = "Unknown Status Code";
+  private static final String STATUS_MESSAGE_FORMAT = "HTTP %d %s";
+
+  static String getStatusMessage(Integer statusCode) {
+    if (statusCode == null) return String.format(STATUS_MESSAGE_FORMAT, 999, UNKNOWN);
+
     Response.Status status = Response.Status.fromStatusCode(statusCode);
-    String statusStr =
-        (status != null) ? status.toString().replace("_", " ") : "Unknown Status Code";
-    return String.format("HTTP %d %s", statusCode, statusStr);
+    String statusStr = (status != null) ? status.getReasonPhrase().replace("_", " ") : UNKNOWN;
+    return String.format(STATUS_MESSAGE_FORMAT, statusCode, statusStr);
   }
 
   @POST

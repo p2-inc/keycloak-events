@@ -9,6 +9,7 @@ import io.phasetwo.keycloak.model.jpa.entity.WebhookEntity;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEventEntity;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookSendEntity;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import java.io.IOException;
@@ -131,8 +132,10 @@ public class JpaWebhookProvider implements WebhookProvider {
       if (event != null) {
         return new WebhookEventAdapter(session, realm, em, event);
       }
+    } catch (NoResultException nre) {
+      log.tracef("no result for event %s %s %s", realm.getId(), type, id);
     } catch (Exception ignore) {
-      log.warnf("error fetching event %s %s %s", realm.getId(), type, id);
+      log.warnf(ignore, "error fetching event %s %s %s", realm.getId(), type, id);
     }
     return null;
   }
@@ -151,8 +154,11 @@ public class JpaWebhookProvider implements WebhookProvider {
   @Override
   public WebhookSendModel storeSend(
       WebhookModel webhook, WebhookEventModel event, String id, String type) {
-    WebhookSendEntity e = new WebhookSendEntity();
-    e.setId(id);
+    WebhookSendEntity e = em.find(WebhookSendEntity.class, id);
+    if (e == null) {
+      e = new WebhookSendEntity();
+      e.setId(id);
+    }
     e.setEventType(type);
     e.setWebhook(((WebhookAdapter) webhook).getEntity());
     e.setEvent(((WebhookEventAdapter) event).getEntity());
