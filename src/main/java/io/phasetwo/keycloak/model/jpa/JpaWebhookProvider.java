@@ -8,6 +8,7 @@ import io.phasetwo.keycloak.model.WebhookSendModel;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEntity;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEventEntity;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookSendEntity;
+import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.Query;
@@ -101,21 +102,27 @@ public class JpaWebhookProvider implements WebhookProvider {
   @Override
   public WebhookEventModel storeEvent(
       RealmModel realm, KeycloakEventType type, String id, Object eventObject) {
-    WebhookEventEntity e = new WebhookEventEntity();
-    e.setId(KeycloakModelUtils.generateId());
-    e.setRealmId(realm.getId());
-    e.setEventType(type);
-    if (type == KeycloakEventType.USER) e.setEventId(id);
-    if (type == KeycloakEventType.ADMIN) e.setAdminEventId(id);
+    WebhookEventEntity e;
     try {
-      e.setEventObject(JsonSerialization.writeValueAsString(eventObject));
-    } catch (IOException ioe) {
-      log.warn("Error serializing event object", ioe);
+      e = new WebhookEventEntity();
+      e.setId(KeycloakModelUtils.generateId());
+      e.setRealmId(realm.getId());
+      e.setEventType(type);
+      if (type == KeycloakEventType.USER) e.setEventId(id);
+      if (type == KeycloakEventType.ADMIN) e.setAdminEventId(id);
+      try {
+        e.setEventObject(JsonSerialization.writeValueAsString(eventObject));
+      } catch (IOException ioe) {
+        log.warn("Error serializing event object", ioe);
+      }
+      em.persist(e);
+      em.flush();
+      WebhookEventModel event = new WebhookEventAdapter(session, realm, em, e);
+      return event;
+    } catch (EntityExistsException eee) {
+      log.debug("Duplicate WebhookEventEntity entry", eee);
+      return getEvent(realm, type, id);
     }
-    em.persist(e);
-    em.flush();
-    WebhookEventModel event = new WebhookEventAdapter(session, realm, em, e);
-    return event;
   }
 
   @Override

@@ -85,7 +85,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     }
   }
 
-  private void storeEvent(
+  private synchronized void storeEvent(
       KeycloakSession session, KeycloakEventType type, ExtendedAdminEvent event) {
     if (!storeWebhookEvents) {
       log.tracef("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
