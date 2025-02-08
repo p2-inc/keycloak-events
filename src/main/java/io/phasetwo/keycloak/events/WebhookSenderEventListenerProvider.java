@@ -107,7 +107,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
     // look it up first, as we might have multiple webhooks
     WebhookEventModel we = webhooks.getEvent(realm, type, event.getId());
-    if (we == null) {
+    if (we != null) {
       log.tracef("Webhook event %s already stored. Skipping.", event.getId());
       return;
     }

@@ -261,7 +261,7 @@ public class WebhooksResource extends AbstractAdminResource {
       listener.schedule(w, customEvent);
     }
 
-    return Response.accepted().build();
+    return Response.accepted().type(MediaType.TEXT_PLAIN).build();
   }
 
   @PUT
