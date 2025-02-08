@@ -118,6 +118,7 @@ public class ExtendedAdminEvent extends AdminEvent {
   }
 
   @Override
+  @JsonIgnore
   public void setAuthDetails(AuthDetails authDetails) {
     if (authDetails == null) {
       this.extAuthDetails = null;
@@ -126,6 +127,10 @@ public class ExtendedAdminEvent extends AdminEvent {
     } else {
       this.extAuthDetails = new ExtendedAuthDetails(authDetails);
     }
+  }
+
+  public void setAuthDetails(ExtendedAuthDetails authDetails) {
+    this.extAuthDetails = authDetails;
   }
 
   @Override

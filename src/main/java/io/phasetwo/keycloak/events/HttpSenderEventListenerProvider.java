@@ -44,8 +44,8 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       return new ExponentialBackOff.Builder()
           .setInitialIntervalMillis(getIntOr(config, BACKOFF_INITIAL_INTERVAL, 500))
           .setMaxElapsedTimeMillis(getIntOr(config, BACKOFF_MAX_ELAPSED_TIME, 900000))
-          .setMaxIntervalMillis(getIntOr(config, BACKOFF_MAX_INTERVAL, 60000))
-          .setMultiplier(getDoubleOr(config, BACKOFF_MULTIPLIER, 1.5))
+          .setMaxIntervalMillis(getIntOr(config, BACKOFF_MAX_INTERVAL, 180000))
+          .setMultiplier(getDoubleOr(config, BACKOFF_MULTIPLIER, 5))
           .setRandomizationFactor(getDoubleOr(config, BACKOFF_RANDOMIZATION_FACTOR, 0.5))
           .build();
   }

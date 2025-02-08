@@ -93,8 +93,8 @@ Configuration values:
 | `retry` | N | true | Should it use exponential backoff to retry on non 2xx response |
 | `backoffInitialInterval` | N | 500 | Initial interval value in milliseconds |
 | `backoffMaxElapsedTime` | N | 900000 | Maximum elapsed time in milliseconds |
-| `backoffMaxInterval` | N | 60000 | Maximum back off time in milliseconds |
-| `backoffMultiplier` | N | 1.5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
+| `backoffMaxInterval` | N | 180000 | Maximum back off time in milliseconds |
+| `backoffMultiplier` | N | 5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
 | `backoffRandomizationFactor` | N | 0.5 | Randomization factor (E.g. 0.5 results in a random period ranging between 50% below and 50% above the retry interval) |
 
 ### Adding Configuration to your EventListenerProvider
