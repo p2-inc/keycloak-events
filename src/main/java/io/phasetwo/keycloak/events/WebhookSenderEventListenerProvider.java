@@ -105,17 +105,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       return;
     }
 
-    // look it up first, as we might have multiple webhooks
-    WebhookEventModel we = webhooks.getEvent(realm, type, event.getId());
+    WebhookEventModel we = webhooks.storeEvent(realm, type, event.getId(), event);
     if (we != null) {
-      log.tracef("Webhook event %s already stored. Skipping.", event.getId());
-      return;
+      log.tracef(
+              "Webhook event stored [%s] %s, %s, %s, %s",
+              we.getId(), event.getRealmId(), we.getEventType(), we.getEventId(), we.getAdminEventId());
     }
-
-    we = webhooks.storeEvent(realm, type, event.getId(), event);
-    log.tracef(
-        "Webhook event stored [%s] %s, %s, %s, %s",
-        we.getId(), event.getRealmId(), we.getEventType(), we.getEventId(), we.getAdminEventId());
   }
 
   public void processEvent(ExtendedAdminEvent event, String realmId) {
@@ -196,10 +191,10 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
                 customEvent.getType(), customEvent.getId());
           } else {
             // look it up first, as we might be here for a retry/resend
-            WebhookSendModel webhookSend = webhooks.getSendById(realm, customEvent.getUid());
+            WebhookSendModel webhookSend = webhooks.getSendByWebhookEventIdAndWebhookId(realm, event.getId(), webhook.getId());
             if (webhookSend == null) {
               webhookSend =
-                  webhooks.storeSend(webhook, event, customEvent.getUid(), customEvent.getType());
+                  webhooks.storeSend(webhook, event, customEvent.getType());
             }
             webhookSend.setStatus(httpStatus);
             webhookSend.incrementRetries();

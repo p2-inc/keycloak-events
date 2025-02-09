@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
@@ -57,16 +58,6 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
-  public WebhookSendModel getSendById(RealmModel realm, String id) {
-    WebhookSendEntity send = em.find(WebhookSendEntity.class, id);
-    if (send != null && send.getWebhook().getRealmId().equals(realm.getId())) {
-      return new WebhookSendAdapter(session, realm, em, send);
-    } else {
-      return null;
-    }
-  }
-
-  @Override
   public Stream<WebhookModel> getWebhooksStream(
       RealmModel realm, Integer firstResult, Integer maxResults) {
     TypedQuery<WebhookEntity> query =
@@ -100,6 +91,16 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
+  public WebhookSendModel getSendById(RealmModel realm, String sid) {
+    WebhookSendEntity send = em.find(WebhookSendEntity.class, sid);
+    if (send != null && send.getWebhook().getRealmId().equals(realm.getId())) {
+      return new WebhookSendAdapter(session, realm, em, send);
+    } else {
+      return null;
+    }
+  }
+
+  @Override
   public WebhookEventModel storeEvent(
       RealmModel realm, KeycloakEventType type, String id, Object eventObject) {
     WebhookEventEntity e;
@@ -119,9 +120,11 @@ public class JpaWebhookProvider implements WebhookProvider {
       em.flush();
       WebhookEventModel event = new WebhookEventAdapter(session, realm, em, e);
       return event;
-    } catch (EntityExistsException eee) {
+    } catch (ModelDuplicateException eee) {
       log.debug("Duplicate WebhookEventEntity entry", eee);
       return getEvent(realm, type, id);
+      // I understand here we can end up with a situation where the event entity has no corespondence.
+      // saw this in the case of a token refresh
     }
   }
 
@@ -159,13 +162,26 @@ public class JpaWebhookProvider implements WebhookProvider {
   }
 
   @Override
-  public WebhookSendModel storeSend(
-      WebhookModel webhook, WebhookEventModel event, String id, String type) {
-    WebhookSendEntity e = em.find(WebhookSendEntity.class, id);
-    if (e == null) {
-      e = new WebhookSendEntity();
-      e.setId(id);
+  public WebhookSendModel getSendByWebhookEventIdAndWebhookId(RealmModel realm, String eventId, String webhookId) {
+    try {
+      TypedQuery<WebhookSendEntity> query =
+              em.createNamedQuery("getWebhookSendsByEventIdAndWebhookId", WebhookSendEntity.class);
+      query.setParameter("webhookId", webhookId);
+      query.setParameter("eventId", eventId);
+      return new WebhookSendAdapter(session, realm, em, query.getSingleResult());
+    } catch (NoResultException nre) {
+      log.tracef("no result for event in realm: %s eventId: %s and webhookId %s", realm.getId(), eventId, webhookId);
+    } catch (Exception ignore) {
+      log.warnf(ignore, "error fetching event in realm: %s eventId: %s and webhookId %s", realm.getId(), eventId, webhookId);
     }
+    return null;
+  }
+
+  @Override
+  public WebhookSendModel storeSend(
+      WebhookModel webhook, WebhookEventModel event, String type) {
+    WebhookSendEntity e = new WebhookSendEntity();
+    e.setId(KeycloakModelUtils.generateId());
     e.setEventType(type);
     e.setWebhook(((WebhookAdapter) webhook).getEntity());
     e.setEvent(((WebhookEventAdapter) event).getEntity());
