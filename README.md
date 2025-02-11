@@ -93,8 +93,8 @@ Configuration values:
 | `retry` | N | true | Should it use exponential backoff to retry on non 2xx response |
 | `backoffInitialInterval` | N | 500 | Initial interval value in milliseconds |
 | `backoffMaxElapsedTime` | N | 900000 | Maximum elapsed time in milliseconds |
-| `backoffMaxInterval` | N | 60000 | Maximum back off time in milliseconds |
-| `backoffMultiplier` | N | 1.5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
+| `backoffMaxInterval` | N | 180000 | Maximum back off time in milliseconds |
+| `backoffMultiplier` | N | 5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
 | `backoffRandomizationFactor` | N | 0.5 | Randomization factor (E.g. 0.5 results in a random period ranging between 50% below and 50% above the retry interval) |
 
 ### Adding Configuration to your EventListenerProvider
@@ -176,6 +176,19 @@ The webhook object has this format:
 ```
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+
+#### Storing webhook events and sends
+
+This extension contains the functionality to store and retrieve the payload that was sent to a webhook, as well as the sending status. In order to enable this functionality, you must set the SPI config variable `--spi-events-listener-ext-event-webhook-store-webhook-events=true` and ensure that your realm settings have events and admin events enabled, which causes them to be stored using the configured `EventStoreProvider`.
+
+This also enables a few additional custom REST endpoints for querying information about the payload and status of webhook sends.
+
+| Path                               | Method   | Payload        | Returns                 | Description    |
+| ---------------------------------- | -------- | -------------- | ----------------------- | -------------- |
+| `/auth/realms/:realm/webhooks/:id/sends`             | `GET`    | `first`, `max` query params for pagination | Webhook send objects (brief)       | Get webhook sends        |
+| `/auth/realms/:realm/webhooks/:id/sends/:sid`        | `GET`    |                                            | Webhook send object (with payload) | Get a webhook send       |
+| `/auth/realms/:realm/webhooks/:id/sends/:sid/resend` | `POST`   |                                            | `202`                              | Resend a webhook payload |
+
 
 ##### Example
 

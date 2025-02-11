@@ -1,25 +1,32 @@
 package io.phasetwo.keycloak.events;
 
 import com.google.common.base.Strings;
+import io.phasetwo.keycloak.model.KeycloakEventType;
+import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
+import io.phasetwo.keycloak.model.WebhookSendModel;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.util.JsonSerialization;
 
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
@@ -31,12 +38,15 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final RunnableTransaction runnableTrx;
   private final KeycloakSessionFactory factory;
 
+  private final boolean storeWebhookEvents;
+  private final WebhookProvider webhooks;
+
   private final String systemUri;
   private final String systemSecret;
   private final String systemAlgorithm;
 
   public WebhookSenderEventListenerProvider(
-      KeycloakSession session, ScheduledExecutorService exec) {
+      KeycloakSession session, ScheduledExecutorService exec, boolean storeWebhookEvents) {
     super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
@@ -45,6 +55,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
     this.systemAlgorithm = System.getenv(WEBHOOK_ALGORITHM_ENV);
+    // should we store webhook events and sends?
+    this.storeWebhookEvents = storeWebhookEvents;
+    this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
   @Override
@@ -52,7 +65,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     log.debugf("onEvent %s %s", event.getType(), event.getId());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", event);
-      runnableTrx.addRunnable(() -> processEvent(customEvent, event.getRealmId()));
+      runnableTrx.addRunnable(
+          () -> processEvent(KeycloakEventType.USER, customEvent, event.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + event, e);
     }
@@ -67,27 +81,69 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
         adminEvent.getResourcePath());
     try {
       ExtendedAdminEvent customEvent = completeAdminEventAttributes("", adminEvent);
-      runnableTrx.addRunnable(() -> processEvent(customEvent, adminEvent.getRealmId()));
+      runnableTrx.addRunnable(
+          () -> processEvent(KeycloakEventType.ADMIN, customEvent, adminEvent.getRealmId()));
     } catch (Exception e) {
       log.warn("Error converting and scheduling event: " + adminEvent, e);
     }
   }
 
-  /** Update the event with a unique uid */
-  public void processEvent(ExtendedAdminEvent customEvent, String realmId) {
-    processEvent(
-        () -> {
-          customEvent.setUid(KeycloakModelUtils.generateId());
-          return customEvent;
-        },
-        realmId);
+  private synchronized void storeEvent(
+      KeycloakSession session, KeycloakEventType type, ExtendedAdminEvent event) {
+    if (!storeWebhookEvents) {
+      log.tracef("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
+      return;
+    }
+    if (!type.keycloakNative()) {
+      log.tracef("%S event. Skipping event storage.", type);
+      return;
+    }
+
+    RealmModel realm = session.realms().getRealm(event.getRealmId());
+    Set<String> eventTypes = realm.getEnabledEventTypesStream().collect(Collectors.toSet());
+    EventType eventType = event.getNativeType();
+    if (type == KeycloakEventType.USER && !realm.isEventsEnabled()) {
+      log.tracef("USER events disabled for realm %s", realm.getName());
+      return;
+    }
+    if (type == KeycloakEventType.USER
+        && !(eventTypes.isEmpty() && eventType.isSaveByDefault()
+            || eventTypes.contains(eventType.name()))) {
+      log.tracef(
+          "USER events not persisted for event type %s for realm %s ", eventType, realm.getName());
+      return;
+    }
+
+    if (type == KeycloakEventType.ADMIN && !realm.isAdminEventsEnabled()) {
+      log.tracef("ADMIN events disabled for realm %s", realm.getName());
+      return;
+    }
+
+    // look it up first, as we might have multiple webhooks
+    WebhookEventModel we = webhooks.getEvent(realm, type, event.getId());
+    if (we != null) {
+      log.tracef("Webhook event %s already stored. Skipping.", event.getId());
+      return;
+    }
+
+    we = webhooks.storeEvent(realm, type, event.getId(), event);
+    log.tracef(
+        "Webhook event stored [%s] %s, %s, %s, %s",
+        we.getId(), event.getRealmId(), we.getEventType(), we.getEventId(), we.getAdminEventId());
+  }
+
+  public void processEvent(ExtendedAdminEvent event, String realmId) {
+    processEvent(KeycloakEventType.fromTypeString(event.getType()), event, realmId);
   }
 
   /** Schedule dispatch to all webhooks and system */
-  private void processEvent(Supplier<ExtendedAdminEvent> supplier, String realmId) {
+  private void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
     KeycloakModelUtils.runJobInTransaction(
         factory,
         (session) -> {
+          if (type.keycloakNative()) {
+            storeEvent(session, type, event);
+          }
           RealmModel realm = session.realms().getRealm(realmId);
           WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
           webhooks
@@ -96,20 +152,76 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
               .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
               .forEach(
                   w -> {
-                    ExtendedAdminEvent customEvent = supplier.get();
+                    ExtendedAdminEvent customEvent = clone(event);
+                    customEvent.setUid(KeycloakModelUtils.generateId());
+                    log.tracef("Got custom event with UID %s", customEvent.getUid());
                     if (!enabledFor(w, customEvent)) return;
-                    schedule(customEvent, w.getUrl(), w.getSecret(), w.getAlgorithm());
+                    schedule(w, customEvent);
                   });
           // for system owner catch-all
           if (!Strings.isNullOrEmpty(systemUri)) {
-            schedule(supplier.get(), systemUri, systemSecret, systemAlgorithm);
+            ExtendedAdminEvent customEvent = clone(event);
+            customEvent.setUid(KeycloakModelUtils.generateId());
+            schedule(null, customEvent, systemUri, systemSecret, systemAlgorithm);
           }
         });
   }
 
+  @Override
+  protected synchronized void afterSend(final SenderTask task, final int httpStatus) {
+    if (task.getProperties().get("webhookId") == null) return;
+    final ExtendedAdminEvent customEvent = (ExtendedAdminEvent) task.getEvent();
+    if (!KeycloakEventType.fromTypeString(customEvent.getType()).keycloakNative()) {
+      log.tracef("%s event type. Skipping send storage.", customEvent.getType());
+      return;
+    }
+    KeycloakModelUtils.runJobInTransaction(
+        factory,
+        (session) -> {
+          RealmModel realm = session.realms().getRealm(customEvent.getRealmId());
+          WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
+          WebhookModel webhook =
+              webhooks.getWebhookById(realm, task.getProperties().get("webhookId"));
+          WebhookEventModel event =
+              webhooks.getEvent(
+                  realm,
+                  KeycloakEventType.fromTypeString(customEvent.getType()),
+                  customEvent.getId());
+          if (event == null) {
+            log.tracef(
+                "No event for [%s] %s. Skipping send storage.",
+                customEvent.getType(), customEvent.getId());
+          } else {
+            // look it up first, as we might be here for a retry/resend
+            WebhookSendModel webhookSend = webhooks.getSendById(realm, customEvent.getUid());
+            if (webhookSend == null) {
+              webhookSend =
+                  webhooks.storeSend(webhook, event, customEvent.getUid(), customEvent.getType());
+            }
+            webhookSend.setStatus(httpStatus);
+            webhookSend.incrementRetries();
+            webhookSend.setSentAt(new Date());
+          }
+        });
+  }
+
+  public void schedule(WebhookModel webhook, ExtendedAdminEvent customEvent) {
+    schedule(
+        webhook.getId(),
+        customEvent,
+        webhook.getUrl(),
+        webhook.getSecret(),
+        webhook.getAlgorithm());
+  }
+
   private void schedule(
-      ExtendedAdminEvent customEvent, String url, String secret, String algorithm) {
+      String webhookId,
+      ExtendedAdminEvent customEvent,
+      String url,
+      String secret,
+      String algorithm) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
+    task.getProperties().put("webhookId", webhookId);
     task.getProperties().put("url", url);
     task.getProperties().put("secret", secret);
     task.getProperties().put("algorithm", algorithm);
@@ -198,14 +310,27 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       details.setSessionId(
           session.getContext().getAuthenticationSession().getParentSession().getId());
     } catch (Exception e) {
-      log.debug("couldn't get sessionId", e);
+      log.tracef("couldn't get sessionId: %s", e.getMessage());
     }
     try {
       details.setRealmId(
           session.getContext().getAuthenticationSession().getParentSession().getRealm().getName());
     } catch (Exception e) {
-      log.debug("couldn't get realmId", e);
+      log.tracef("couldn't get realmId: %s", e.getMessage());
     }
     return event;
+  }
+
+  /** deep clone the event */
+  private static ExtendedAdminEvent clone(ExtendedAdminEvent event) {
+    try {
+      ExtendedAdminEvent customEvent =
+          JsonSerialization.readValue(
+              JsonSerialization.writeValueAsString(event), ExtendedAdminEvent.class);
+      customEvent.setUid(null);
+      return customEvent;
+    } catch (IOException e) {
+      throw new IllegalStateException("Event can't be cloned because of serialization issue.", e);
+    }
   }
 }

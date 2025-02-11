@@ -48,6 +48,7 @@ public abstract class AbstractResourceTest {
           .withReuse(true)
           .withProviderClassesFrom("target/classes")
           .withProviderLibsFrom(getDeps())
+          .withCustomCommand("--spi-events-listener-ext-event-webhook-store-webhook-events=true")
           .withAccessToHost(true);
 
   protected static final int WEBHOOK_SERVER_PORT = 8083;

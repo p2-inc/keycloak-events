@@ -8,6 +8,8 @@ public class ExtendedAuthDetails extends AuthDetails {
   private String username;
   private String sessionId;
 
+  public ExtendedAuthDetails() {}
+
   public ExtendedAuthDetails(AuthDetails authDetails) {
     if (authDetails != null) {
       setClientId(authDetails.getClientId());

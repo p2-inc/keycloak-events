@@ -50,8 +50,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
 
   @Override
   public void close() {
-    // close this instance of the event listener
-    log.debugf("called close() on SenderEventListenerProvider");
+    log.tracef("called close() on SenderEventListenerProvider");
   }
 
   class SenderTask {
@@ -110,14 +109,14 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
             try {
               send(task);
             } catch (SenderException | IOException e) {
-              log.debug("sending exception", e);
+              log.trace("sending exception", e);
               if (e instanceof SenderException && !((SenderException) e).isRetryable()) return;
-              log.debugf(
+              log.tracef(
                   "BackOff policy is %s",
                   BackOff.STOP_BACKOFF == task.getBackOff() ? "STOP" : "BACKOFF");
               long backOffTime = task.getBackOff().nextBackOffMillis();
               if (backOffTime == BackOff.STOP) return;
-              log.debugf("retrying in %d due to %s", backOffTime, e.getCause());
+              log.tracef("retrying in %d due to %s", backOffTime, e.getCause());
               schedule(task, backOffTime, TimeUnit.MILLISECONDS);
             } catch (Throwable t) {
               log.warn("Uncaught Sender error", t);

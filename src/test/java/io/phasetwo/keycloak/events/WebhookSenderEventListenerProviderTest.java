@@ -43,10 +43,11 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
   }
 
   @Test
-  public void testAdminEventContainsCorrectRealmMasterMaster() throws Exception {
+  public void testWebhookEventsAndSendsStorage() throws Exception {
     // Configure
     RealmResource realm = keycloak.realm(REALM);
     RealmRepresentation realmRepresentation = realm.toRepresentation();
+    realmRepresentation.setEventsEnabled(true);
     realmRepresentation.setAdminEventsEnabled(true);
     realmRepresentation.setAdminEventsDetailsEnabled(true);
     realmRepresentation.setEventsListeners(Arrays.asList("ext-event-webhook"));
@@ -91,7 +92,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // check the handler for the event, after a delay
       String receivedPayload = body.get();
       ExtendedAdminEvent event = parseEvent(receivedPayload);
-      assertThat(event.getRealmId(), equalTo(REALM));
+      assertThat(event.getRealmName(), equalTo(REALM));
       assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
       assertThat(event.getType(), equalTo("admin.USER-CREATE"));
 
@@ -107,7 +108,82 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // check the handler for the event, after a delay
       receivedPayload = body.get();
       event = parseEvent(receivedPayload);
-      assertThat(event.getRealmId(), equalTo(REALM));
+      assertThat(event.getRealmName(), equalTo(REALM));
+      assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+      assertThat(event.getType(), equalTo("admin.USER-DELETE"));
+    } finally {
+      server.stop();
+      removeWebhook(keycloak, httpClient, webhookUrl(REALM), webhookId);
+    }
+  }
+
+  @Test
+  public void testAdminEventContainsCorrectRealmMasterMaster() throws Exception {
+    // Configure
+    RealmResource realm = keycloak.realm(REALM);
+    RealmRepresentation realmRepresentation = realm.toRepresentation();
+    realmRepresentation.setEventsEnabled(true);
+    realmRepresentation.setAdminEventsEnabled(true);
+    realmRepresentation.setAdminEventsDetailsEnabled(true);
+    realmRepresentation.setEventsListeners(Arrays.asList("ext-event-webhook"));
+    realm.update(realmRepresentation);
+
+    AtomicReference<String> body = new AtomicReference<String>();
+    // create a server on a free port with a handler to listen for the event
+    int port = WEBHOOK_SERVER_PORT;
+    String webhookId =
+        createWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            "qlfwemke",
+            ImmutableSet.of("admin.*"));
+
+    Server server = new Server(port);
+    server
+        .router()
+        .POST(
+            "/webhook",
+            (request, response) -> {
+              String r = request.body();
+              log.infof("%s", r);
+              body.set(r);
+              response.body("OK");
+              response.status(202);
+            });
+    server.start();
+    Thread.sleep(1000l);
+
+    try {
+      // cause an event to be sent
+      UserRepresentation userRepresentation = new UserRepresentation();
+      userRepresentation.setUsername("username");
+      Response userResponse = realm.users().create(userRepresentation);
+      assertThat(userResponse.getStatus(), is(201));
+
+      Thread.sleep(1000l);
+
+      // check the handler for the event, after a delay
+      String receivedPayload = body.get();
+      ExtendedAdminEvent event = parseEvent(receivedPayload);
+      assertThat(event.getRealmName(), equalTo(REALM));
+      assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
+      assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+      // Now delete the user
+      List<UserRepresentation> users = realm.users().search("username");
+      assertThat(users.size(), is(1));
+      String userId = users.getFirst().getId();
+      userResponse = realm.users().delete(userId);
+      assertThat(userResponse.getStatus(), is(204));
+
+      Thread.sleep(1000l);
+
+      // check the handler for the event, after a delay
+      receivedPayload = body.get();
+      event = parseEvent(receivedPayload);
+      assertThat(event.getRealmName(), equalTo(REALM));
       assertThat(event.getAuthDetails().getRealmId(), equalTo(REALM));
       assertThat(event.getType(), equalTo("admin.USER-DELETE"));
     } finally {
@@ -122,6 +198,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     RealmRepresentation realmRepresentation = new RealmRepresentation();
     realmRepresentation.setId(TEST_REALM);
     realmRepresentation.setDisplayName(TEST_REALM);
+    realmRepresentation.setEventsEnabled(true);
     realmRepresentation.setAdminEventsEnabled(true);
     realmRepresentation.setAdminEventsDetailsEnabled(true);
     realmRepresentation.setRealm(TEST_REALM);
@@ -200,6 +277,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     RealmRepresentation realmRepresentation = new RealmRepresentation();
     realmRepresentation.setId(TEST_REALM);
     realmRepresentation.setDisplayName(TEST_REALM);
+    realmRepresentation.setEventsEnabled(true);
     realmRepresentation.setAdminEventsEnabled(true);
     realmRepresentation.setAdminEventsDetailsEnabled(true);
     realmRepresentation.setRealm(TEST_REALM);
@@ -317,6 +395,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     RealmRepresentation realmRepresentation = new RealmRepresentation();
     realmRepresentation.setId(TEST_REALM);
     realmRepresentation.setDisplayName(TEST_REALM);
+    realmRepresentation.setEventsEnabled(true);
     realmRepresentation.setAdminEventsEnabled(true);
     realmRepresentation.setAdminEventsDetailsEnabled(true);
     realmRepresentation.setRealm(TEST_REALM);

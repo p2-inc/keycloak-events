@@ -44,8 +44,8 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       return new ExponentialBackOff.Builder()
           .setInitialIntervalMillis(getIntOr(config, BACKOFF_INITIAL_INTERVAL, 500))
           .setMaxElapsedTimeMillis(getIntOr(config, BACKOFF_MAX_ELAPSED_TIME, 900000))
-          .setMaxIntervalMillis(getIntOr(config, BACKOFF_MAX_INTERVAL, 60000))
-          .setMultiplier(getDoubleOr(config, BACKOFF_MULTIPLIER, 1.5))
+          .setMaxIntervalMillis(getIntOr(config, BACKOFF_MAX_INTERVAL, 180000))
+          .setMultiplier(getDoubleOr(config, BACKOFF_MULTIPLIER, 5))
           .setRandomizationFactor(getDoubleOr(config, BACKOFF_RANDOMIZATION_FACTOR, 0.5))
           .build();
   }
@@ -81,6 +81,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       LegacySimpleHttp.Response response = request.asResponse();
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
+      doAfterSend(task, status);
       if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
         log.warnf("Sending failure (Server response:%d)", status);
         throw new SenderException(true);
@@ -93,6 +94,16 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       throw new SenderException(false, e);
     }
   }
+
+  protected final void doAfterSend(SenderTask task, int httpStatus) {
+    try {
+      afterSend(task, httpStatus);
+    } catch (Exception e) {
+      log.warn("Error afterSend", e);
+    }
+  }
+
+  protected void afterSend(SenderTask task, int httpStatus) {}
 
   protected String hmacFor(Object o, String sharedSecret, String algorithm) {
     try {

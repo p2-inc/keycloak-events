@@ -2,9 +2,10 @@ package io.phasetwo.keycloak.representation;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.HashMap;
+import com.google.common.collect.Maps;
 import java.util.Map;
 import org.keycloak.events.Event;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AuthDetails;
 import org.keycloak.events.admin.ResourceType;
@@ -13,10 +14,11 @@ import org.keycloak.models.RealmModel;
 /** Unified event class. */
 public class ExtendedAdminEvent extends AdminEvent {
 
+  @JsonIgnore private EventType nativeType;
   @JsonIgnore private ExtendedAuthDetails extAuthDetails;
   private String uid;
   private String type;
-  private Map<String, String> details = new HashMap<>();
+  private final Map<String, String> details;
 
   private static String createType(AdminEvent event) {
     StringBuilder o = new StringBuilder("admin.");
@@ -34,28 +36,36 @@ public class ExtendedAdminEvent extends AdminEvent {
     return o.toString();
   }
 
-  public ExtendedAdminEvent() {}
+  public ExtendedAdminEvent() {
+    this.details = Maps.newHashMap();
+  }
 
   public ExtendedAdminEvent(
       String uid, AdminEvent event, RealmModel eventRealm, RealmModel authRealm) {
     this.uid = uid;
     this.type = createType(event);
+    this.details = Maps.newHashMap();
 
     setTime(event.getTime());
-    setRealmId(eventRealm.getName());
+    setRealmId(eventRealm.getId());
+    setRealmName(eventRealm.getName());
     setAuthDetails(event.getAuthDetails());
     extAuthDetails.setRealmId(authRealm.getName());
+    addDetails(event.getDetails());
     setResourceType(event.getResourceType());
     setResourceTypeAsString(event.getResourceTypeAsString());
     setOperationType(event.getOperationType());
     setResourcePath(event.getResourcePath());
     setRepresentation(event.getRepresentation());
     setError(event.getError());
+    setId(event.getId());
   }
 
   public ExtendedAdminEvent(String uid, Event event, RealmModel realm) {
     this.uid = uid;
+    this.nativeType = event.getType();
     this.type = createType(event);
+    this.details = Maps.newHashMap();
 
     ExtendedAuthDetails authDetails = new ExtendedAuthDetails(null);
     authDetails.setRealmId(realm.getName());
@@ -64,10 +74,12 @@ public class ExtendedAdminEvent extends AdminEvent {
     authDetails.setSessionId(event.getSessionId());
     authDetails.setUserId(event.getUserId());
     setAuthDetails(authDetails);
-    setDetails(event.getDetails());
+    addDetails(event.getDetails());
     setError(event.getError());
     setRealmId(event.getRealmId());
+    setRealmName(event.getRealmName());
     setTime(event.getTime());
+    setId(event.getId());
   }
 
   public String getUid() {
@@ -76,6 +88,11 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public void setUid(String uid) {
     this.uid = uid;
+  }
+
+  @JsonIgnore
+  public EventType getNativeType() {
+    return this.nativeType;
   }
 
   @JsonProperty("type")
@@ -93,7 +110,13 @@ public class ExtendedAdminEvent extends AdminEvent {
   }
 
   public void setDetails(Map<String, String> details) {
-    this.details = details;
+    this.details.clear();
+    addDetails(details);
+  }
+
+  @JsonIgnore
+  public void addDetails(Map<String, String> details) {
+    if (details != null) this.details.putAll(details);
   }
 
   @JsonProperty("authDetails")
@@ -103,6 +126,7 @@ public class ExtendedAdminEvent extends AdminEvent {
   }
 
   @Override
+  @JsonIgnore
   public void setAuthDetails(AuthDetails authDetails) {
     if (authDetails == null) {
       this.extAuthDetails = null;
@@ -111,6 +135,10 @@ public class ExtendedAdminEvent extends AdminEvent {
     } else {
       this.extAuthDetails = new ExtendedAuthDetails(authDetails);
     }
+  }
+
+  public void setAuthDetails(ExtendedAuthDetails authDetails) {
+    this.extAuthDetails = authDetails;
   }
 
   @Override
