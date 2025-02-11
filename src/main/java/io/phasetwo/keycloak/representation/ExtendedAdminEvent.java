@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import org.keycloak.events.Event;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AuthDetails;
 import org.keycloak.events.admin.ResourceType;
@@ -13,6 +14,7 @@ import org.keycloak.models.RealmModel;
 /** Unified event class. */
 public class ExtendedAdminEvent extends AdminEvent {
 
+  @JsonIgnore private EventType nativeType;
   @JsonIgnore private ExtendedAuthDetails extAuthDetails;
   private String uid;
   private String type;
@@ -61,6 +63,7 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public ExtendedAdminEvent(String uid, Event event, RealmModel realm) {
     this.uid = uid;
+    this.nativeType = event.getType();
     this.type = createType(event);
     this.details = Maps.newHashMap();
 
@@ -85,6 +88,11 @@ public class ExtendedAdminEvent extends AdminEvent {
 
   public void setUid(String uid) {
     this.uid = uid;
+  }
+
+  @JsonIgnore
+  public EventType getNativeType() {
+    return this.nativeType;
   }
 
   @JsonProperty("type")

@@ -11,19 +11,22 @@ import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.io.IOException;
 import java.util.Date;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
+import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.util.JsonSerialization;
 
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
@@ -91,17 +94,23 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       log.tracef("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
       return;
     }
+    if (!type.keycloakNative()) {
+      log.tracef("%S event. Skipping event storage.", type);
+      return;
+    }
+
     RealmModel realm = session.realms().getRealm(event.getRealmId());
-    if (type == KeycloakEventType.USER && !realm.isEventsEnabled()) {
+    Set<String> eventTypes = realm.getEnabledEventTypesStream().collect(Collectors.toSet());
+    EventType eventType = event.getNativeType();
+    if (type == KeycloakEventType.USER
+        && !realm.isEventsEnabled()
+        && (eventTypes.isEmpty() && eventType.isSaveByDefault()
+            || eventTypes.contains(eventType.name()))) {
       log.tracef("USER events disabled for realm %s", realm.getName());
       return;
     }
     if (type == KeycloakEventType.ADMIN && !realm.isAdminEventsEnabled()) {
       log.tracef("ADMIN events disabled for realm %s", realm.getName());
-      return;
-    }
-    if (!type.keycloakNative()) {
-      log.tracef("%S event. Skipping event storage.", type);
       return;
     }
 
@@ -122,28 +131,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     processEvent(KeycloakEventType.fromTypeString(event.getType()), event, realmId);
   }
 
-  /** Update the event with a unique uid */
-  public void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
-    processEvent(
-        () -> {
-          log.tracef("Checking event for UID %s", event.getUid());
-          if (Strings.isNullOrEmpty(event.getUid())) {
-            event.setUid(KeycloakModelUtils.generateId());
-            log.tracef("Set UID for event %s", event.getUid());
-          }
-          return event;
-        },
-        realmId,
-        type,
-        event);
-  }
-
   /** Schedule dispatch to all webhooks and system */
-  private void processEvent(
-      Supplier<ExtendedAdminEvent> supplier,
-      String realmId,
-      KeycloakEventType type,
-      ExtendedAdminEvent event) {
+  private void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
     KeycloakModelUtils.runJobInTransaction(
         factory,
         (session) -> {
@@ -158,14 +147,17 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
               .filter(w -> !Strings.isNullOrEmpty(w.getUrl()))
               .forEach(
                   w -> {
-                    ExtendedAdminEvent customEvent = supplier.get();
+                    ExtendedAdminEvent customEvent = clone(event);
+                    customEvent.setUid(KeycloakModelUtils.generateId());
                     log.tracef("Got custom event with UID %s", customEvent.getUid());
                     if (!enabledFor(w, customEvent)) return;
                     schedule(w, customEvent);
                   });
           // for system owner catch-all
           if (!Strings.isNullOrEmpty(systemUri)) {
-            schedule(null, supplier.get(), systemUri, systemSecret, systemAlgorithm);
+            ExtendedAdminEvent customEvent = clone(event);
+            customEvent.setUid(KeycloakModelUtils.generateId());
+            schedule(null, customEvent, systemUri, systemSecret, systemAlgorithm);
           }
         });
   }
@@ -322,5 +314,18 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       log.tracef("couldn't get realmId: %s", e.getMessage());
     }
     return event;
+  }
+
+  /** deep clone the event */
+  private static ExtendedAdminEvent clone(ExtendedAdminEvent event) {
+    try {
+      ExtendedAdminEvent customEvent =
+          JsonSerialization.readValue(
+              JsonSerialization.writeValueAsString(event), ExtendedAdminEvent.class);
+      customEvent.setUid(null);
+      return customEvent;
+    } catch (IOException e) {
+      throw new IllegalStateException("Event can't be cloned because of serialization issue.", e);
+    }
   }
 }
