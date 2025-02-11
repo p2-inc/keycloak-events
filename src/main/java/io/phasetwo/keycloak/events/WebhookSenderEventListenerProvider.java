@@ -102,13 +102,18 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     RealmModel realm = session.realms().getRealm(event.getRealmId());
     Set<String> eventTypes = realm.getEnabledEventTypesStream().collect(Collectors.toSet());
     EventType eventType = event.getNativeType();
-    if (type == KeycloakEventType.USER
-        && !realm.isEventsEnabled()
-        && (eventTypes.isEmpty() && eventType.isSaveByDefault()
-            || eventTypes.contains(eventType.name()))) {
+    if (type == KeycloakEventType.USER && !realm.isEventsEnabled()) {
       log.tracef("USER events disabled for realm %s", realm.getName());
       return;
     }
+    if (type == KeycloakEventType.USER
+        && !(eventTypes.isEmpty() && eventType.isSaveByDefault()
+            || eventTypes.contains(eventType.name()))) {
+      log.tracef(
+          "USER events not persisted for event type %s for realm %s ", eventType, realm.getName());
+      return;
+    }
+
     if (type == KeycloakEventType.ADMIN && !realm.isAdminEventsEnabled()) {
       log.tracef("ADMIN events disabled for realm %s", realm.getName());
       return;
