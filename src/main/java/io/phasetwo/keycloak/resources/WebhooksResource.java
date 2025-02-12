@@ -80,6 +80,34 @@ public class WebhooksResource extends AbstractAdminResource {
     return webhook;
   }
 
+  private WebhookSend toRepresentation(WebhookSendModel s, boolean brief) {
+    WebhookSend send = new WebhookSend();
+    send.setId(s.getId());
+    send.setEventId(s.getEvent().getId()); //
+    send.setEventType(s.getEventType());
+    send.setStatus(s.getStatus());
+    send.setStatusMessage(getStatusMessage(s.getStatus()));
+    send.setRetries(s.getRetries());
+    send.setSentAt(s.getSentAt());
+    KeycloakEventType kcType = s.getEvent().getEventType();
+    send.setKeycloakEventType(kcType.name());
+    if (kcType == KeycloakEventType.USER) {
+      send.setKeycloakEventId(s.getEvent().getEventId());
+    }
+    if (kcType == KeycloakEventType.ADMIN) {
+      send.setKeycloakEventId(s.getEvent().getAdminEventId());
+    }
+    if (!brief) send.setPayload(s.getEvent().rawPayload());
+    WebhookModel w = s.getWebhook();
+    // brief representation for the send
+    WebhookRepresentation webhook = new WebhookRepresentation();
+    webhook.setId(w.getId());
+    webhook.setEnabled(w.isEnabled());
+    webhook.setUrl(w.getUrl());
+    send.setWebhook(webhook);
+    return send;
+  }
+
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response createWebhook(final WebhookRepresentation rep) {
@@ -138,20 +166,7 @@ public class WebhooksResource extends AbstractAdminResource {
     if (w == null) {
       throw new NotFoundException(String.format("no webhook with id %s", id));
     }
-    return webhooks
-        .getSends(realm, w, firstResult, maxResults)
-        .map(
-            s -> {
-              WebhookSend send = new WebhookSend();
-              send.setId(s.getId());
-              send.setWebhookId(s.getWebhook().getId());
-              send.setEventType(s.getEventType());
-              send.setStatus(s.getStatus());
-              send.setStatusMessage(getStatusMessage(s.getStatus()));
-              send.setRetries(s.getRetries());
-              send.setSentAt(s.getSentAt());
-              return send;
-            });
+    return webhooks.getSends(realm, w, firstResult, maxResults).map(s -> toRepresentation(s, true));
   }
 
   @GET
@@ -177,9 +192,9 @@ public class WebhooksResource extends AbstractAdminResource {
   }
 
   @GET
-  @Path("{type}/{kid}")
+  @Path("sends/{type}/{kid}")
   @Produces(MediaType.APPLICATION_JSON)
-  public Stream<WebhookRepresentation> getWebhooksForEvent(
+  public Stream<WebhookSend> getWebhookSendsForEvent(
       final @PathParam("type") String type, final @PathParam("kid") String kid) throws Exception {
     permissions.realm().requireViewEvents();
 
@@ -190,7 +205,7 @@ public class WebhooksResource extends AbstractAdminResource {
     return webhooks
         .getSends(
             realm, "admin".equals(type) ? KeycloakEventType.ADMIN : KeycloakEventType.USER, kid)
-        .map(s -> toRepresentation(s.getWebhook()));
+        .map(s -> toRepresentation(s, true));
   }
 
   @GET
@@ -210,25 +225,7 @@ public class WebhooksResource extends AbstractAdminResource {
     if (!w.getId().equals(s.getWebhook().getId())) {
       throw new NotFoundException(String.format("no webhook %s and send %s", id, sid));
     }
-    WebhookSend send = new WebhookSend();
-    send.setId(s.getId());
-    send.setWebhookId(s.getWebhook().getId());
-    send.setEventType(s.getEventType());
-    send.setEventId(s.getEvent().getId()); //
-    send.setStatus(s.getStatus());
-    send.setStatusMessage(getStatusMessage(s.getStatus()));
-    send.setRetries(s.getRetries());
-    send.setSentAt(s.getSentAt());
-    KeycloakEventType kcType = s.getEvent().getEventType();
-    send.setKeycloakEventType(kcType.name());
-    if (kcType == KeycloakEventType.USER) {
-      send.setKeycloakEventId(s.getEvent().getEventId());
-    }
-    if (kcType == KeycloakEventType.ADMIN) {
-      send.setKeycloakEventId(s.getEvent().getAdminEventId());
-    }
-    send.setPayload(s.getEvent().rawPayload());
-    return send;
+    return toRepresentation(s, false);
   }
 
   private static final String UNKNOWN = "Unknown Status Code";
