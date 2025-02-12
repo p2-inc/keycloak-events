@@ -10,7 +10,10 @@ import java.util.Date;
           "SELECT w FROM WebhookSendEntity w WHERE w.webhook = :webhook ORDER BY w.sentAt DESC"),
   @NamedQuery(
       name = "getWebhookSendsByEvent",
-      query = "SELECT w FROM WebhookSendEntity w WHERE w.event = :event ORDER BY w.sentAt DESC")
+      query = "SELECT w FROM WebhookSendEntity w WHERE w.event = :event ORDER BY w.sentAt DESC"),
+  @NamedQuery(
+           name = "getWebhookSendsByEventIdAndWebhookId",
+             query = "SELECT w FROM WebhookSendEntity w WHERE w.event.id = :eventId and w.webhook.id = :webhookId ORDER BY w.sentAt DESC")
 })
 @Entity
 @Table(name = "WEBHOOK_SEND")
@@ -22,8 +25,6 @@ public class WebhookSendEntity {
 
   @Column(name = "EVENT_TYPE")
   protected String eventType;
-
-  ;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "WEBHOOK_ID")

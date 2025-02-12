@@ -15,7 +15,7 @@ public interface WebhookProvider extends Provider {
   WebhookEventModel getEvent(RealmModel realm, KeycloakEventType type, String id);
 
   /** store a webhook send * */
-  WebhookSendModel storeSend(WebhookModel webhook, WebhookEventModel event, String id, String type);
+  WebhookSendModel storeSend(WebhookModel webhook, WebhookEventModel event, String type);
 
   /** given a Keycloak event, show all webhook sends that were triggered */
   default Stream<WebhookSendModel> getSends(RealmModel realm, KeycloakEventType type, String id) {
@@ -29,7 +29,7 @@ public interface WebhookProvider extends Provider {
   Stream<WebhookSendModel> getSends(
       RealmModel realm, WebhookModel webhook, Integer firstResult, Integer maxResults);
 
-  WebhookSendModel getSendById(RealmModel realm, String id);
+  WebhookSendModel getSendByWebhookEventIdAndWebhookId(RealmModel realm, String eventId, String webhookId);
 
   /** create a new webhook with a url and a user who created it */
   WebhookModel createWebhook(RealmModel realm, String url, UserModel createdBy);
@@ -53,4 +53,6 @@ public interface WebhookProvider extends Provider {
 
   /** remove all webhooks for a given realm */
   void removeWebhooks(RealmModel realm);
+
+  WebhookSendModel getSendById(RealmModel realm, String sid);
 }
