@@ -6,6 +6,7 @@ import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.model.WebhookSendModel;
+import io.phasetwo.keycloak.representation.Credential;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import io.phasetwo.keycloak.representation.WebhookSend;
@@ -109,11 +110,15 @@ public class WebhooksResource extends AbstractAdminResource {
   @GET
   @Path("{id}/secret")
   @Produces(MediaType.APPLICATION_JSON)
-  public String getWebhookSecret(final @PathParam("id") String id) {
+  public Credential getWebhookSecret(final @PathParam("id") String id) {
     permissions.realm().requireManageEvents();
     WebhookModel w = webhooks.getWebhookById(realm, id);
-    if (w != null) return w.getSecret();
-    else throw new NotFoundException(String.format("no webhook with id %s", id));
+    if (w != null) {
+      Credential c = new Credential();
+      c.setType("secret");
+      c.setValue(w.getSecret());
+      return c;
+    } else throw new NotFoundException(String.format("no webhook with id %s", id));
   }
 
   @GET
