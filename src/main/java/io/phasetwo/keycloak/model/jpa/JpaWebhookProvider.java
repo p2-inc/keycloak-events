@@ -179,7 +179,7 @@ public class JpaWebhookProvider implements WebhookProvider {
   public Stream<WebhookSendModel> getSends(RealmModel realm, WebhookEventModel event) {
     TypedQuery<WebhookSendEntity> query =
         em.createNamedQuery("getWebhookSendsByEvent", WebhookSendEntity.class);
-    query.setParameter("event", event);
+    query.setParameter("event", ((WebhookEventAdapter) event).getEntity());
     return query.getResultStream().map(e -> new WebhookSendAdapter(session, realm, em, e));
   }
 
