@@ -28,6 +28,11 @@ public enum KeycloakEventType {
         return type;
       }
     }
+
+    if (input.toUpperCase().startsWith("ACCESS.")) {
+      return KeycloakEventType.USER;
+    }
+
     return KeycloakEventType.UNKNOWN;
   }
 }
