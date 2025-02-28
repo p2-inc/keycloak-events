@@ -2,6 +2,8 @@ package io.phasetwo.keycloak.model.jpa.entity;
 
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @NamedQueries({
   @NamedQuery(
@@ -35,6 +37,7 @@ public class WebhookEventEntity {
   protected String adminEventId;
 
   @Column(name = "EVENT_OBJECT", nullable = true)
+  @JdbcTypeCode(SqlTypes.JSON)
   protected String eventObject;
 
   public String getId() {
