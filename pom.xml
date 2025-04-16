@@ -30,9 +30,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
     <junit.version>5.11.2</junit.version>
-    <keycloak.version>26.1.2</keycloak.version>
-    <keycloak-admin-client.version>26.0.4</keycloak-admin-client.version>
-    <lombok.version>1.18.36</lombok.version>
+    <keycloak.version>26.2.0</keycloak.version>
+    <keycloak-admin-client.version>26.0.5</keycloak-admin-client.version>
+    <lombok.version>1.18.38</lombok.version>
     <auto-service.version>1.1.1</auto-service.version>
     <ossrh.url>https://s01.oss.sonatype.org</ossrh.url>
   </properties>
@@ -130,7 +130,7 @@
       <plugin> <!-- pretty up the code using google java standards `mvn fmt:format` -->
         <groupId>com.spotify.fmt</groupId>
         <artifactId>fmt-maven-plugin</artifactId>
-        <version>2.23</version>
+        <version>2.25</version>
       </plugin>
     </plugins>
   </build>
@@ -235,13 +235,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>1.20.4</version>
+      <version>1.20.6</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.github.dasniko</groupId>
       <artifactId>testcontainers-keycloak</artifactId>
-      <version>3.6.0</version>
+      <version>3.7.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -271,7 +271,7 @@
     <dependency> <!-- so we can test webhooks for org methods -->
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>keycloak-orgs</artifactId>
-      <version>[0.76,)</version>
+      <version>[0.96,)</version>
       <scope>test</scope>
     </dependency>
     <dependency>
