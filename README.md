@@ -228,4 +228,4 @@ There is a special catch-all webhook that can be used by system owners to always
 
 ---
 
-All documentation, source code and other files in this repository are Copyright 2023 Phase Two, Inc.
+All documentation, source code and other files in this repository are Copyright 2025 Phase Two, Inc.
