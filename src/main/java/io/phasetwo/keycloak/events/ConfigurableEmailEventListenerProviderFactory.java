@@ -19,13 +19,16 @@ public class ConfigurableEmailEventListenerProviderFactory implements EventListe
 
   public static final String PROVIDER_ID = "ext-event-email";
 
+  /*
+    removed per https://www.keycloak.org/docs/latest/upgrading/index.html#new-generalized-event-types-for-credentials
+    EventType.UPDATE_PASSWORD,
+    EventType.REMOVE_TOTP,
+    EventType.UPDATE_TOTP,
+  */
   static {
     Collections.addAll(
         SUPPORTED_EVENTS,
         EventType.LOGIN_ERROR,
-        EventType.UPDATE_PASSWORD,
-        EventType.REMOVE_TOTP,
-        EventType.UPDATE_TOTP,
         EventType.UPDATE_CREDENTIAL,
         EventType.REMOVE_CREDENTIAL);
   }
