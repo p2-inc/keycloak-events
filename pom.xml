@@ -30,8 +30,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
     <junit.version>5.11.2</junit.version>
-    <keycloak.version>26.2.0</keycloak.version>
-    <keycloak-admin-client.version>26.0.5</keycloak-admin-client.version>
+    <keycloak.version>26.3.0</keycloak.version>
+    <keycloak-admin-client.version>26.0.6</keycloak-admin-client.version>
     <lombok.version>1.18.38</lombok.version>
     <auto-service.version>1.1.1</auto-service.version>
     <ossrh.url>https://s01.oss.sonatype.org</ossrh.url>
@@ -271,7 +271,7 @@
     <dependency> <!-- so we can test webhooks for org methods -->
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>keycloak-orgs</artifactId>
-      <version>[0.97,)</version>
+      <version>[0.106,)</version>
       <scope>test</scope>
     </dependency>
     <dependency>

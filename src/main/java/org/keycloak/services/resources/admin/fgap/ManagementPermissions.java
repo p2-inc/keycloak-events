@@ -1,4 +1,4 @@
-package org.keycloak.services.resources.admin.permissions;
+package org.keycloak.services.resources.admin.fgap;
 
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;

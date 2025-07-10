@@ -46,7 +46,7 @@ public class EventsResourceTest extends AbstractResourceTest {
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    createWebhook(
+    String webhookId = createWebhook(
         keycloak,
         httpClient,
         webhookUrl(),
@@ -79,6 +79,7 @@ public class EventsResourceTest extends AbstractResourceTest {
     assertNotNull(body.get());
     assertThat(body.get(), containsString("foo.BAR"));
 
+    removeWebhook(keycloak, httpClient, webhookUrl(), webhookId);
     removeEventListener(keycloak, "master", "ext-event-webhook");
     server.stop();
   }
@@ -165,7 +166,6 @@ public class EventsResourceTest extends AbstractResourceTest {
     assertThat(body.get(), containsString("foo.BAR"));
 
     */
-
     removeEventListener(keycloak, "master", "ext-event-http");
     // wait and stop
     Thread.sleep(1000l);
