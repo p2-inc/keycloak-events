@@ -5,6 +5,10 @@
   <packaging>jar</packaging>
   <version>0.47-SNAPSHOT</version>
 
+  <name>Phase Two Keycloak Events</name>
+  <description>Useful Keycloak EventListener implementations and utilities.</description>
+  <url>https://github.com/p2-inc/keycloak-events</url>
+
   <parent>
     <groupId>com.github.xgp</groupId>
     <artifactId>oss-parent</artifactId>
