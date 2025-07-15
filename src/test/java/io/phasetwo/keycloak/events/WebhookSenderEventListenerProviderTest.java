@@ -99,7 +99,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // Now delete the user
       List<UserRepresentation> users = realm.users().search("username");
       assertThat(users.size(), is(1));
-      String userId = users.getFirst().getId();
+      String userId = users.get(0).getId();
       userResponse = realm.users().delete(userId);
       assertThat(userResponse.getStatus(), is(204));
 
@@ -174,7 +174,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // Now delete the user
       List<UserRepresentation> users = realm.users().search("username");
       assertThat(users.size(), is(1));
-      String userId = users.getFirst().getId();
+      String userId = users.get(0).getId();
       userResponse = realm.users().delete(userId);
       assertThat(userResponse.getStatus(), is(204));
 
@@ -209,7 +209,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    createWebhook(
+    String webhookId = createWebhook(
         keycloak,
         httpClient,
         webhookUrl(TEST_REALM),
@@ -251,7 +251,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // Now delete the user
       List<UserRepresentation> users = realm.users().search("username");
       assertThat(users.size(), is(1));
-      String userId = users.getFirst().getId();
+      String userId = users.get(0).getId();
       userResponse = realm.users().delete(userId);
       assertThat(userResponse.getStatus(), is(204));
 
@@ -265,6 +265,8 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       assertThat(event.getType(), equalTo("admin.USER-DELETE"));
 
       // cleanup
+      removeWebhook(keycloak, httpClient, webhookUrl(TEST_REALM), webhookId);
+
       realm.remove();
     } finally {
       server.stop();
@@ -315,7 +317,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    createWebhook(
+    String webhookId = createWebhook(
         keycloak,
         httpClient,
         webhookUrl(TEST_REALM),
@@ -368,7 +370,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // Now delete the user
       List<UserRepresentation> users = realm.users().search("username");
       assertThat(users.size(), is(1));
-      String userId = users.getFirst().getId();
+      String userId = users.get(0).getId();
       userResponse = realm.users().delete(userId);
       assertThat(userResponse.getStatus(), is(204));
 
@@ -382,6 +384,8 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       assertThat(event.getType(), equalTo("admin.USER-DELETE"));
 
       // cleanup
+      removeWebhook(keycloak, httpClient, webhookUrl(TEST_REALM), webhookId);
+
       realm = keycloak.realm(TEST_REALM);
       realm.remove();
     } finally {
@@ -433,7 +437,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    createWebhook(
+    String webhookId =createWebhook(
         keycloak,
         httpClient,
         webhookUrl(TEST_REALM),
@@ -486,7 +490,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       // Now delete the user
       List<UserRepresentation> users = realm.users().search("username");
       assertThat(users.size(), is(1));
-      String userId = users.getFirst().getId();
+      String userId = users.get(0).getId();
       userResponse = realm.users().delete(userId);
       assertThat(userResponse.getStatus(), is(204));
 
@@ -500,6 +504,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       assertThat(event.getType(), equalTo("admin.USER-DELETE"));
 
       // cleanup
+      removeWebhook(keycloak, httpClient, webhookUrl(TEST_REALM), webhookId);
       realm = keycloak.realm(TEST_REALM);
       realm.remove();
     } finally {

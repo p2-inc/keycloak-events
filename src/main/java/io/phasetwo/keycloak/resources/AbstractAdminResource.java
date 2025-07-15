@@ -1,7 +1,5 @@
 package io.phasetwo.keycloak.resources;
 
-import jakarta.validation.constraints.*;
-import jakarta.ws.rs.*;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -18,9 +16,9 @@ import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.managers.RealmManager;
 import org.keycloak.services.resources.admin.AdminAuth;
 import org.keycloak.services.resources.admin.AdminEventBuilder;
-import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
-import org.keycloak.services.resources.admin.permissions.AdminPermissions;
-import org.keycloak.services.resources.admin.permissions.ManagementPermissions;
+import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
+import org.keycloak.services.resources.admin.fgap.AdminPermissions;
+import org.keycloak.services.resources.admin.fgap.ManagementPermissions;
 
 @JBossLog
 public abstract class AbstractAdminResource {
