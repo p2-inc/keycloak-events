@@ -224,7 +224,7 @@ There is also a custom REST resource that allows publishing of arbitrary events.
 It is possible to disable the scripts run by the `ScriptEventListenerProvider` by setting `SCRIPTS_DISABLED=true`. This may be desirable in shared environments where it is not ideal to allow user code to run in the Keycloak process. Note that this will just cause the scripts to fail silently.
 
 #### Webhooks
-There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environtment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
+There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
 
 ---
 
