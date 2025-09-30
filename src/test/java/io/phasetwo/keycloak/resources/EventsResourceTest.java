@@ -46,14 +46,13 @@ public class EventsResourceTest extends AbstractResourceTest {
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    String webhookId =
-        createWebhook(
-            keycloak,
-            httpClient,
-            webhookUrl(),
-            "http://host.testcontainers.internal:" + port + "/webhook",
-            "qlfwemke",
-            ImmutableSet.of("admin.*", "foo.*"));
+    String webhookId = createWebhook(
+        keycloak,
+        httpClient,
+        webhookUrl(),
+        "http://host.testcontainers.internal:" + port + "/webhook",
+        "qlfwemke",
+        ImmutableSet.of("admin.*", "foo.*"));
 
     Server server = new Server(port);
     server
