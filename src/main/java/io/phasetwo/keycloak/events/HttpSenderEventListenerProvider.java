@@ -9,12 +9,15 @@ import java.io.IOException;
 import java.security.SignatureException;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
+import org.keycloak.events.Event;
+import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
@@ -22,6 +25,7 @@ import org.keycloak.util.JsonSerialization;
 public class HttpSenderEventListenerProvider extends SenderEventListenerProvider {
 
   protected static final String TARGET_URI = "targetUri";
+  protected static final String EVENT_TYPES = "eventTypes";
   protected static final String RETRY = "retry";
   protected static final String SHARED_SECRET = "sharedSecret";
   protected static final String HMAC_ALGORITHM = "hmacAlgorithm";
@@ -54,12 +58,30 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
     return config.get(TARGET_URI).toString();
   }
 
+  String getEventTypes() {
+    return getOr(config, EVENT_TYPES, "*");
+  }
+
   Optional<String> getSharedSecret() {
     return Optional.ofNullable(config.get(SHARED_SECRET)).map(Object::toString);
   }
 
   Optional<String> getHmacAlgorithm() {
     return Optional.ofNullable(config.get(HMAC_ALGORITHM)).map(Object::toString);
+  }
+
+  @Override
+  public void onEvent(Event event) {
+    if (enabledFor(event.getType().toString())) {
+      super.onEvent(event);
+    }
+  }
+
+  @Override
+  public void onEvent(AdminEvent event, boolean b) {
+    if (enabledFor(event.getOperationType().toString())) {
+      super.onEvent(event, b);
+    }
   }
 
   @Override
@@ -140,5 +162,18 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       throw new SignatureException("Failed to generate HMAC : " + e.getMessage());
     }
     return result;
+  }
+
+  private boolean enabledFor(String type) {
+    log.debugf("Checking webhook enabled for %s [%s]", type, getEventTypes());
+    for (String t : getEventTypes().split(",")) {
+      if ("*".equals(t)) return true;
+      if (t.equals(type)) return true;
+      try {
+        if (Pattern.matches(t, type)) return true;
+      } catch (Exception ignored) {
+      }
+    }
+    return false;
   }
 }
