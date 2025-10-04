@@ -83,7 +83,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       log.debugf("sent to %s (%d)", targetUri, status);
       doAfterSend(task, status);
       if (status < HTTP_OK || status >= HTTP_MULT_CHOICE) { // any 2xx is acceptable
-        log.warnf("Sending failure (Server response:%d)", status);
+        log.warnf("Sending failure for %s (Server response:%d) - %s", targetUri, status, task);
         throw new SenderException(true);
       }
     } catch (SenderException se) {

@@ -1,12 +1,16 @@
 package io.phasetwo.keycloak.events;
 
 import com.github.xgp.util.BackOff;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import io.phasetwo.keycloak.config.Configurable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventListenerProvider;
@@ -74,6 +78,13 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
     public Map<String, String> getProperties() {
       return this.properties;
     }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "[%s] %s",
+          event != null ? event.getClass().getName() : "null", formatMap(properties, IGNORE_KEYS));
+    }
   }
 
   class SenderException extends Exception {
@@ -130,4 +141,18 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
   }
 
   abstract void send(SenderTask task) throws SenderException, IOException;
+
+  static final Set<String> IGNORE_KEYS = ImmutableSet.of("secret");
+
+  static String formatMap(Map<String, String> map, final Set<String> ignoreKeys) {
+    if (map == null || map.isEmpty()) {
+      return "";
+    }
+    Map<String, String> filtered =
+        map.entrySet().stream()
+            .filter(e -> e.getKey() != null && e.getValue() != null)
+            .filter(e -> !ignoreKeys.contains(e.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    return Joiner.on(", ").withKeyValueSeparator("=>").join(filtered);
+  }
 }
