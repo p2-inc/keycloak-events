@@ -3,11 +3,16 @@ package io.phasetwo.keycloak.events;
 import java.util.Map;
 import org.keycloak.events.Event;
 import org.keycloak.events.admin.AdminEvent;
+import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 
 public class Events {
+
+  public static ClientModel getClient(KeycloakSession session, Event event) {
+    return session.clients().getClientByClientId(getRealm(session, event), event.getClientId());
+  }
 
   public static RealmModel getRealm(KeycloakSession session, Event event) {
     return session.realms().getRealm(event.getRealmId());

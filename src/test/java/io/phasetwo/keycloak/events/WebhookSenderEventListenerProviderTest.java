@@ -209,13 +209,14 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    String webhookId = createWebhook(
-        keycloak,
-        httpClient,
-        webhookUrl(TEST_REALM),
-        "http://host.testcontainers.internal:" + port + "/webhook",
-        "qlfwemke",
-        ImmutableSet.of("admin.*"));
+    String webhookId =
+        createWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(TEST_REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            "qlfwemke",
+            ImmutableSet.of("admin.*"));
 
     Server server = new Server(port);
     server
@@ -317,13 +318,14 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    String webhookId = createWebhook(
-        keycloak,
-        httpClient,
-        webhookUrl(TEST_REALM),
-        "http://host.testcontainers.internal:" + port + "/webhook",
-        "qlfwemke",
-        ImmutableSet.of("admin.*"));
+    String webhookId =
+        createWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(TEST_REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            "qlfwemke",
+            ImmutableSet.of("admin.*"));
 
     Server server = new Server(port);
     server
@@ -437,13 +439,14 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     AtomicReference<String> body = new AtomicReference<String>();
     // create a server on a free port with a handler to listen for the event
     int port = WEBHOOK_SERVER_PORT;
-    String webhookId =createWebhook(
-        keycloak,
-        httpClient,
-        webhookUrl(TEST_REALM),
-        "http://host.testcontainers.internal:" + port + "/webhook",
-        "qlfwemke",
-        ImmutableSet.of("admin.*"));
+    String webhookId =
+        createWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(TEST_REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            "qlfwemke",
+            ImmutableSet.of("admin.*"));
 
     Server server = new Server(port);
     server
