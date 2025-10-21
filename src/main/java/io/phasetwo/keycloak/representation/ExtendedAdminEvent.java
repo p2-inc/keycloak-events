@@ -152,4 +152,10 @@ public class ExtendedAdminEvent extends AdminEvent {
   public ResourceType getResourceType() {
     return super.getResourceType();
   }
+
+  @Override
+  @JsonProperty(value = "resourceId", access = JsonProperty.Access.READ_ONLY)
+  public String getResourceId() {
+    return super.getResourceId();
+  }
 }
