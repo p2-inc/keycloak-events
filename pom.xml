@@ -33,6 +33,7 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <main.java.package>io.phasetwo.keycloak.events</main.java.package>
+    <awssdk.version>2.36.3</awssdk.version>
     <junit.version>5.11.2</junit.version>
     <keycloak.version>26.4.1</keycloak.version>
     <keycloak-admin-client.version>26.0.7</keycloak-admin-client.version>
@@ -221,6 +222,22 @@
       <artifactId>nashorn-core</artifactId>
       <version>15.4</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>firehose</artifactId>
+      <version>${awssdk.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+      </exclusions>
+      <scope>provided</scope> <!-- you have to explicitly include this if you are using aws kinesis -->
     </dependency>
 
     <!-- testing -->
