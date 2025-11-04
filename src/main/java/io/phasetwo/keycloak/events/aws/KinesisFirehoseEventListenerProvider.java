@@ -15,30 +15,38 @@ import software.amazon.awssdk.services.firehose.model.Record;
 @JBossLog
 public class KinesisFirehoseEventListenerProvider implements EventListenerProvider {
 
-  private static final String LOGIN_EVENT_STREAM_NAME = "login-events";
-  private static final String ADMIN_EVENT_STREAM_NAME = "admin-events";
-
   private final EventListenerTransaction tx;
   private final FirehoseClient firehose;
+  private final String firehoseUserEventsStream;
+  private final String firehoseAdminEventsStream;
 
-  public KinesisFirehoseEventListenerProvider(KeycloakSession session, FirehoseClient firehose) {
+  public KinesisFirehoseEventListenerProvider(
+      KeycloakSession session,
+      FirehoseClient firehose,
+      String firehoseUserEventsStream,
+      String firehoseAdminEventsStream) {
     this.tx = new EventListenerTransaction(this::logAdminEvent, this::logEvent);
     this.firehose = firehose;
+    this.firehoseUserEventsStream = firehoseUserEventsStream;
+    this.firehoseAdminEventsStream = firehoseAdminEventsStream;
+    session.getTransactionManager().enlistAfterCompletion(tx);
   }
 
   @Override
   public void onEvent(Event event) {
+    log.infof("onEvent %s", event.getId());
     tx.addEvent(event);
   }
 
   @Override
   public void onEvent(AdminEvent adminEvent, boolean includeRepresentation) {
+    log.infof("onAdminEvent %s", adminEvent.getId());
     tx.addAdminEvent(adminEvent, includeRepresentation);
   }
 
   protected void logEvent(Event event) {
     try {
-      send(JsonSerialization.writeValueAsString(event), LOGIN_EVENT_STREAM_NAME);
+      send(JsonSerialization.writeValueAsString(event), firehoseUserEventsStream);
     } catch (Exception e) {
       log.warn("Error serializing event", e);
     }
@@ -46,7 +54,7 @@ public class KinesisFirehoseEventListenerProvider implements EventListenerProvid
 
   protected void logAdminEvent(AdminEvent adminEvent, boolean realmIncludeRepresentation) {
     try {
-      send(JsonSerialization.writeValueAsString(adminEvent), ADMIN_EVENT_STREAM_NAME);
+      send(JsonSerialization.writeValueAsString(adminEvent), firehoseAdminEventsStream);
     } catch (Exception e) {
       log.warn("Error serializing event", e);
     }
@@ -54,8 +62,8 @@ public class KinesisFirehoseEventListenerProvider implements EventListenerProvid
 
   protected void send(String json, String stream) {
     try {
+      log.infof("put record to %s:\n%s", stream, json);
       Record record = Record.builder().data(SdkBytes.fromUtf8String(json + "\n")).build();
-
       firehose.putRecord(
           PutRecordRequest.builder().deliveryStreamName(stream).record(record).build());
     } catch (Exception e) {
