@@ -116,7 +116,7 @@ resource "aws_glue_catalog_table" "keycloak-events-user-events" {
     }
 
     columns {
-      name = "client_id"
+      name = "clientId"
       type = "string"
     }
 
@@ -131,22 +131,27 @@ resource "aws_glue_catalog_table" "keycloak-events-user-events" {
     }
 
     columns {
-      name = "ip_address"
+      name = "ipAddress"
       type = "string"
     }
 
     columns {
-      name = "realm_id"
+      name = "realmId"
       type = "string"
     }
 
     columns {
-      name = "session_id"
+      name = "realmName"
       type = "string"
     }
 
     columns {
-      name = "event_time"
+      name = "sessionId"
+      type = "string"
+    }
+
+    columns {
+      name = "time"
       type = "bigint"
     }
 
@@ -156,12 +161,12 @@ resource "aws_glue_catalog_table" "keycloak-events-user-events" {
     }
 
     columns {
-      name = "user_id"
+      name = "userId"
       type = "string"
     }
 
     columns {
-      name = "details_json_long_value"
+      name = "detailsJson"
       type = "string"
     }
   }
@@ -261,42 +266,52 @@ resource "aws_glue_catalog_table" "keycloak-events-admin-events" {
     }
 
     columns {
-      name = "admin_event_time"
+      name = "time"
       type = "bigint"
     }
 
     columns {
-      name = "realm_id"
+      name = "realmId"
       type = "string"
     }
 
     columns {
-      name = "operation_type"
+      name = "realmName"
       type = "string"
     }
 
     columns {
-      name = "auth_realm_id"
+      name = "operationType"
       type = "string"
     }
 
     columns {
-      name = "auth_client_id"
+      name = "authRealmId"
       type = "string"
     }
 
     columns {
-      name = "auth_user_id"
+      name = "authRealmName"
       type = "string"
     }
 
     columns {
-      name = "ip_address"
+      name = "authClientId"
       type = "string"
     }
 
     columns {
-      name = "resource_path"
+      name = "authUserId"
+      type = "string"
+    }
+
+    columns {
+      name = "authIpAddress"
+      type = "string"
+    }
+
+    columns {
+      name = "resourcePath"
       type = "string"
     }
 
@@ -311,12 +326,17 @@ resource "aws_glue_catalog_table" "keycloak-events-admin-events" {
     }
 
     columns {
-      name = "resource_type"
+      name = "resourceId"
       type = "string"
     }
 
     columns {
-      name = "details_json"
+      name = "resourceType"
+      type = "string"
+    }
+
+    columns {
+      name = "detailsJson"
       type = "string"
     }
   }
