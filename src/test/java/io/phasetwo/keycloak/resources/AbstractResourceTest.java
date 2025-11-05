@@ -21,7 +21,10 @@ public abstract class AbstractResourceTest {
     "org.keycloak:keycloak-admin-client",
     "io.phasetwo.keycloak:keycloak-orgs",
     "com.github.xgp:kitchen-sink",
-    "org.openjdk.nashorn:nashorn-core"
+    "org.openjdk.nashorn:nashorn-core",
+    "software.amazon.awssdk:firehose",
+    "software.amazon.awssdk:auth",
+    "software.amazon.awssdk:identity-spi",
   };
 
   static List<File> getDeps() {
