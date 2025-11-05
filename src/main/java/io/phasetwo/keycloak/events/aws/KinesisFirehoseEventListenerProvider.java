@@ -46,7 +46,7 @@ public class KinesisFirehoseEventListenerProvider implements EventListenerProvid
 
   protected void logEvent(Event event) {
     try {
-      send(JsonSerialization.writeValueAsString(event), firehoseUserEventsStream);
+      send(JsonSerialization.writeValueAsString(new FlatEvent(event)), firehoseUserEventsStream);
     } catch (Exception e) {
       log.warn("Error serializing event", e);
     }
@@ -54,7 +54,9 @@ public class KinesisFirehoseEventListenerProvider implements EventListenerProvid
 
   protected void logAdminEvent(AdminEvent adminEvent, boolean realmIncludeRepresentation) {
     try {
-      send(JsonSerialization.writeValueAsString(adminEvent), firehoseAdminEventsStream);
+      send(
+          JsonSerialization.writeValueAsString(new FlatAdminEvent(adminEvent)),
+          firehoseAdminEventsStream);
     } catch (Exception e) {
       log.warn("Error serializing event", e);
     }
