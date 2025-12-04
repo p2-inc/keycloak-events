@@ -154,9 +154,9 @@ Enable webhook events in the Admin UI by going to (Configure) Realm Settings > E
 Webhooks are managed with a custom REST resource with the following methods. Use of these methods requires the authenticated user to have the `view-events` and `manage-events` permissions.
 
 | Path                               | Method   | Payload        | Returns                 | Description    |
-| ---------------------------------- | -------- | -------------- | ----------------------- | -------------- |
+| ---------------------------------- | -------- | -------------- |-------------------------| -------------- |
 | `/auth/realms/:realm/webhooks`     | `GET`    |                | List of webhook objects | Get webhooks   |
-| `/auth/realms/:realm/webhooks`     | `POST`   | Webhook object | `201`                   | Create webhook |
+| `/auth/realms/:realm/webhooks`     | `POST`   | Webhook object | `201` + Webhook object  | Create webhook |
 | `/auth/realms/:realm/webhooks/:id` | `GET`    |                | Webhook object          | Get webhook    |
 | `/auth/realms/:realm/webhooks/:id` | `PUT`    | Webhook object | `204`                   | Update webhook |
 | `/auth/realms/:realm/webhooks/:id` | `DELETE` | Webhook object | `204`                   | Delete webhook |
@@ -175,7 +175,7 @@ The webhook object has this format:
 }
 ```
 
-For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching or returning newly created webhooks.
 
 #### Storing webhook events and sends
 

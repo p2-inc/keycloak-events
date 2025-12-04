@@ -110,6 +110,7 @@ public class WebhooksResource extends AbstractAdminResource {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
+  @Produces(MediaType.APPLICATION_JSON)
   public Response createWebhook(final WebhookRepresentation rep) {
     permissions.realm().requireManageEvents();
     validateWebhook(rep);
@@ -122,7 +123,8 @@ public class WebhooksResource extends AbstractAdminResource {
             .path("webhooks")
             .path(w.getId())
             .build();
-    return Response.created(location).build();
+    WebhookRepresentation webhookRepresentation = toRepresentation(w);
+    return Response.status(Response.Status.CREATED).entity(webhookRepresentation).location(location).build();
   }
 
   @GET
