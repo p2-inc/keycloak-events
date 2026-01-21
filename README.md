@@ -88,6 +88,7 @@ Configuration values:
 | Name | Required | Default | Description |
 | -----| -------- | ------- | ----------- |
 | `targetUri` | Y | | The URI to send the event payload |
+| `eventTypes` | N | * | Comma-separated list of event types to send. If empty, all events will be sent |
 | `sharedSecret` | N | | The shared secret value to use for HMAC signing. If present, the signature according to RFC2104 will be passed as `X-Keycloak-Signature` header |
 | `hmacAlgorithm` | N | HmacSHA256 | The HMAC algortihm used for signing. Defaults to HmacSHA256. Can be set to HmacSHA1 for backwards compatibility |
 | `retry` | N | true | Should it use exponential backoff to retry on non 2xx response |
