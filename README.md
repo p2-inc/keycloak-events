@@ -34,7 +34,7 @@ The `EventListenerProvider` implementations in this library rely on two utilitie
 1. The first is that configuration is loaded from Realm attributes. This means that you can update the configuration for these implementations at runtime by either writing directly to the `realm_attributes` table or by calling the [Realm Update](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_put_adminrealmsrealm) method. Also, In order to make using these easier, there is included a `RealmAttributesResource` that allows you to CRUD the attributes separately from updating the whole realm. It's available at the `/auth/realms/<realm>/attributes` endpoint. Attribute keys are `_providerConfig.<provider_id>.<optional:N>`, and the configurations are stored in the value field as JSON. Currently only single depth JSON objects are supported.
 2. The optional `N` value in the key is relevant to the second important utility. The `EventListenerProviderFactory` implementations are all subclasses of `MultiEventListenerProviderFactory`, which enables multiple `EventListenerProvider` instances of the same type to run with different configurations. This is a facility that is not currently available in Keycloak, although some tickets and features in the future Admin UI indicate that it is coming soon.
 
-Most events require being enabled through the Admin UI. Go to (Configure) Realm Settings > Events (tab) > Event listeners. In the Event listeners dropdown select `ext-event-********` for the appropriate event being enabled.
+Most events require being enabled through the Admin UI. Go to (Configure) Realm Settings > Events (tab) > Event listeners. In the Event listeners dropdown, select the specific provider ID (e.g., `ext-event-script`, `ext-event-webhook`) for the event listener you want to enable, and click "Save".
 
 ### Script
 
@@ -47,38 +47,35 @@ The script event listener allows you to run JS event listeners in the same fashi
 - `session`: the KeycloakSession
 - `LOG`: a JBoss Logger
 
-From the Keycloak admin UI "Events"->"Config" section, add `ext-event-script` to the "Event Listeners" form field and click "Save".
+#### Steps to Configure the Script Event Listener
 
-The script event listener is configured by setting a Realm attribute in the Realm you have enabled the listener with a `_providerConfig.ext-event-script.N` key. The `N` value should correspond to a unique integer index for each script you want to run, and scripts will be run in that order.
+1. **Enable the Script Event Listener in the Admin UI**:
+   - Go to the Keycloak Admin UI.
+   - Navigate to (Configure) Realm Settings > Events (tab) > Event listeners.
+   - In the Event listeners dropdown, select `ext-event-script` and click "Save".
 
-The configuration requires 3 mandatory values:
-| Name | Required | Default | Description |
-| -----| -------- | ------- | ----------- |
-| `scriptName` | Y | | The name of the script |
-| `scriptDescription` | Y | | A description of what the script does |
-| `scriptCode` | Y | | The JS code |
+2. **Configure the Script via Realm Attribute**:
+   - The script is configured by setting a Realm attribute.
+   - **Note**: Keycloak's built-in Admin UI theme does not expose realm attributes for editing. To set this attribute, you have two options:
+     - Use the Phase Two Keycloak image with the admin theme set to `phasetwo.v2`, which provides a UI for managing realm attributes.
+     - Set the attribute via an API call to the [Realm Update](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_put_adminrealmsrealm) endpoint or directly to the `realm_attributes` table.
+   - The attribute key is `_providerConfig.ext-event-script.N`, where `N` is a unique integer index (e.g., 0, 1, 2) for each script you want to run. Scripts are executed in order of their index.
+   - The attribute value must be a JSON object containing the following mandatory fields:
+     | Name | Required | Default | Description |
+     | -----| -------- | ------- | ----------- |
+     | `scriptName` | Y | | The name of the script |
+     | `scriptDescription` | Y | | A description of what the script does |
+     | `scriptCode` | Y | | The JS code |
 
-A trivial example:
-
-```js
-function onEvent(event) {
-  LOG.info(
-    event.type + " in realm " + realm.name + " for user " + user.username
-  );
-}
-
-function onAdminEvent(event, representation) {
-  LOG.info(
-    event.operationType +
-      " on " +
-      event.resourceType +
-      " in realm " +
-      realm.name +
-      " by user " +
-      authUser.username
-  );
-}
-```
+3. **Example Configuration**:
+   - Set the realm attribute `_providerConfig.ext-event-script.0` to the following JSON:
+     ```json
+     {
+       "scriptName": "Example Script",
+       "scriptDescription": "Logs events to the console",
+       "scriptCode": "function onEvent(event) {\n  LOG.info(event.type + \" in realm \" + realm.name + \" for user \" + user.username);\n}\n\nfunction onAdminEvent(event, representation) {\n  LOG.info(event.operationType + \" on \" + event.resourceType + \" in realm \" + realm.name + \" by user \" + authUser.username);\n}"
+     }
+     ```
 
 ### HTTP Sender
 
@@ -147,7 +144,12 @@ This provides the entities and REST endpoints required to allow webhook subscrip
 
 Webhooks are sent using the same mechanics as the `HttpSenderEventListenerProvider`, and there is an automatic exponential backoff if there is not a 2xx response. The sending tasks are scheduled in a thread pool and executed after the Keycloak transaction has been committed.
 
-Enable webhook events in the Admin UI by going to (Configure) Realm Settings > Events (tab) > Event Listeners, in the Event listeners dropdown select `ext-event-webhook` and save.
+#### Steps to Enable Webhook Events
+
+1. **Enable Webhook Events in the Admin UI**:
+   - Go to the Keycloak Admin UI.
+   - Navigate to (Configure) Realm Settings > Events (tab) > Event Listeners.
+   - In the Event listeners dropdown, select `ext-event-webhook` and save.
 
 #### Managing webhook subscriptions
 
