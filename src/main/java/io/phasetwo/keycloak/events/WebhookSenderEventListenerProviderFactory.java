@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
+import org.keycloak.connections.httpclient.HttpClientProvider;
 import org.keycloak.events.EventListenerProviderFactory;
 import org.keycloak.models.KeycloakSession;
 
@@ -26,7 +27,8 @@ public class WebhookSenderEventListenerProviderFactory
 
   @Override
   public WebhookSenderEventListenerProvider create(KeycloakSession session) {
-    return new WebhookSenderEventListenerProvider(session, exec, storeWebhookEvents);
+    var httpClient = session.getProvider(HttpClientProvider.class).getHttpClient();
+    return new WebhookSenderEventListenerProvider(session, exec, httpClient, storeWebhookEvents);
   }
 
   @Override

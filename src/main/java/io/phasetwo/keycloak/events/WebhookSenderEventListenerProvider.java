@@ -18,6 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
@@ -46,8 +47,11 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final String systemAlgorithm;
 
   public WebhookSenderEventListenerProvider(
-      KeycloakSession session, ScheduledExecutorService exec, boolean storeWebhookEvents) {
-    super(session, exec);
+      KeycloakSession session,
+      ScheduledExecutorService exec,
+      CloseableHttpClient httpClient,
+      boolean storeWebhookEvents) {
+    super(session, exec, httpClient);
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
