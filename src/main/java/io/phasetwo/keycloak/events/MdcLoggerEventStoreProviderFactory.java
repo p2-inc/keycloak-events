@@ -21,7 +21,7 @@ public class MdcLoggerEventStoreProviderFactory implements EventStoreProviderFac
 
   @Override
   public EventStoreProvider create(KeycloakSession session) {
-    return new MdcLoggerEventStoreProvider();
+    return new MdcLoggerEventStoreProvider(session);
   }
 
   @Override

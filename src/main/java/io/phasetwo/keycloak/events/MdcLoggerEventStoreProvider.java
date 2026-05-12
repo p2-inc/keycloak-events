@@ -10,6 +10,7 @@ import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.AdminEventQuery;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 
 /**
@@ -23,6 +24,10 @@ import org.keycloak.models.RealmModel;
  */
 public class MdcLoggerEventStoreProvider extends MdcLoggerEventListenerProvider
     implements EventStoreProvider {
+
+  public MdcLoggerEventStoreProvider(KeycloakSession session) {
+    super(session);
+  }
 
   @Override
   public EventQuery createQuery() {
