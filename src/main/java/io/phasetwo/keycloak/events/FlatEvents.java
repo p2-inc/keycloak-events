@@ -27,4 +27,10 @@ public class FlatEvents {
       throw new IllegalStateException("Unable to deserialize event details", e);
     }
   }
+
+  protected static void putIfNotNull(Map<String, Object> map, String key, Object value) {
+    if (value != null) {
+      map.put(key, value);
+    }
+  }
 }

@@ -26,7 +26,7 @@ import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
 import org.slf4j.LoggerFactory;
 
-public class MdcLoggerEventListenerProviderUnitTest {
+public class MdcLoggerEventListenerProviderTest {
 
   private MdcLoggerEventListenerProvider provider;
   private ListAppender<ILoggingEvent> eventAppender;

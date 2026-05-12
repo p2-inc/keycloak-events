@@ -64,23 +64,17 @@ public class FlatEvent {
   public Map<String, Object> toMap() {
     Map<String, Object> map = new LinkedHashMap<>();
     map.put("class", eventClass);
-    putIfNotNull(map, "id", id);
-    putIfNotNull(map, "type", type);
-    putIfNotNull(map, "realmId", realmId);
-    putIfNotNull(map, "realmName", realmName);
-    putIfNotNull(map, "clientId", clientId);
-    putIfNotNull(map, "userId", userId);
-    putIfNotNull(map, "sessionId", sessionId);
-    putIfNotNull(map, "ipAddress", ipAddress);
-    putIfNotNull(map, "error", error);
+    FlatEvents.putIfNotNull(map, "id", id);
+    FlatEvents.putIfNotNull(map, "type", type);
+    FlatEvents.putIfNotNull(map, "realmId", realmId);
+    FlatEvents.putIfNotNull(map, "realmName", realmName);
+    FlatEvents.putIfNotNull(map, "clientId", clientId);
+    FlatEvents.putIfNotNull(map, "userId", userId);
+    FlatEvents.putIfNotNull(map, "sessionId", sessionId);
+    FlatEvents.putIfNotNull(map, "ipAddress", ipAddress);
+    FlatEvents.putIfNotNull(map, "error", error);
     map.put("time", time);
-    putIfNotNull(map, "detailsJson", detailsJson);
+    FlatEvents.putIfNotNull(map, "detailsJson", detailsJson);
     return map;
-  }
-
-  private static void putIfNotNull(Map<String, Object> map, String key, Object value) {
-    if (value != null) {
-      map.put(key, value);
-    }
   }
 }

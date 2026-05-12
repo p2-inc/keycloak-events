@@ -94,27 +94,21 @@ public class FlatAdminEvent {
   public Map<String, Object> toMap() {
     Map<String, Object> map = new LinkedHashMap<>();
     map.put("class", eventClass);
-    putIfNotNull(map, "id", id);
+    FlatEvents.putIfNotNull(map, "id", id);
     map.put("time", time);
-    putIfNotNull(map, "realmId", realmId);
-    putIfNotNull(map, "realmName", realmName);
-    putIfNotNull(map, "operationType", operationType);
-    putIfNotNull(map, "resourceType", resourceType);
-    putIfNotNull(map, "resourcePath", resourcePath);
-    putIfNotNull(map, "representation", representation);
-    putIfNotNull(map, "error", error);
-    putIfNotNull(map, "authRealmId", authRealmId);
-    putIfNotNull(map, "authRealmName", authRealmName);
-    putIfNotNull(map, "authClientId", authClientId);
-    putIfNotNull(map, "authUserId", authUserId);
-    putIfNotNull(map, "authIpAddress", authIpAddress);
-    putIfNotNull(map, "detailsJson", detailsJson);
+    FlatEvents.putIfNotNull(map, "realmId", realmId);
+    FlatEvents.putIfNotNull(map, "realmName", realmName);
+    FlatEvents.putIfNotNull(map, "operationType", operationType);
+    FlatEvents.putIfNotNull(map, "resourceType", resourceType);
+    FlatEvents.putIfNotNull(map, "resourcePath", resourcePath);
+    FlatEvents.putIfNotNull(map, "representation", representation);
+    FlatEvents.putIfNotNull(map, "error", error);
+    FlatEvents.putIfNotNull(map, "authRealmId", authRealmId);
+    FlatEvents.putIfNotNull(map, "authRealmName", authRealmName);
+    FlatEvents.putIfNotNull(map, "authClientId", authClientId);
+    FlatEvents.putIfNotNull(map, "authUserId", authUserId);
+    FlatEvents.putIfNotNull(map, "authIpAddress", authIpAddress);
+    FlatEvents.putIfNotNull(map, "detailsJson", detailsJson);
     return map;
-  }
-
-  private static void putIfNotNull(Map<String, Object> map, String key, Object value) {
-    if (value != null) {
-      map.put(key, value);
-    }
   }
 }
