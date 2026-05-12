@@ -10,6 +10,7 @@ Useful Keycloak `EventListenerProvider` implementations and utilities.
 - [A mechanism for running multiple event listeners of the same type with different configurations](#enabling-running-multiple-eventlistenerprovider-instances-of-the-same-type)
 - [Base classes for a User added/removed listener](#user-change-listener)
 - [A unified event model with facility for subscribing to webhooks](#webhooks)
+- [An EventStoreProvider that writes events to a JBoss logger via MDC](#mdc-logger-event-store)
 
 ## Quick start
 
@@ -137,6 +138,87 @@ public class MyUserAddRemove extends UserEventListenerProviderFactory {
 
 }
 ```
+
+### MDC Logger Event Store
+
+An `EventStoreProvider` implementation that emits each user and admin event as a structured JBoss log message. The flattened event fields are put into the [MDC](https://docs.jboss.org/jbosslogging/latest/org/jboss/logging/MDC.html) under the `event.` prefix for the duration of the log call, so downstream log appenders (e.g. a JSON encoder shipping to Loki, Elasticsearch, or CloudWatch) can index them as first-class fields.
+
+Two named JBoss loggers are used so user and admin events can be routed independently:
+
+- `io.phasetwo.keycloak.EVENT_LOGGER` — user events (`onEvent(Event)`)
+- `io.phasetwo.keycloak.ADMIN_EVENT_LOGGER` — admin events (`onEvent(AdminEvent, boolean)`)
+
+Both emit an `INFO`-level message with the body `Event Logger`. The interesting data is in the MDC.
+
+#### MDC fields
+
+For user events (`FlatEvent`), the following MDC keys are set (omitted when null):
+
+| Key | Value |
+| --- | --- |
+| `event.class` | `USER` |
+| `event.id` | Event id (auto-generated UUID if Keycloak did not set one) |
+| `event.type` | `EventType` name, e.g. `LOGIN`, `LOGIN_ERROR` |
+| `event.realmId` | Realm UUID |
+| `event.realmName` | Realm name |
+| `event.clientId` | Client id |
+| `event.userId` | User UUID |
+| `event.sessionId` | Session id |
+| `event.ipAddress` | IP address |
+| `event.error` | Error code, when present |
+| `event.time` | Event timestamp (epoch millis) |
+| `event.detailsJson` | JSON-serialized event details map, when present |
+
+For admin events (`FlatAdminEvent`), the following MDC keys are set (omitted when null):
+
+| Key | Value |
+| --- | --- |
+| `event.class` | `ADMIN` |
+| `event.id` | Event id (auto-generated UUID if Keycloak did not set one) |
+| `event.time` | Event timestamp (epoch millis) |
+| `event.realmId` | Realm UUID |
+| `event.realmName` | Realm name |
+| `event.operationType` | `OperationType` name, e.g. `CREATE`, `UPDATE` |
+| `event.resourceType` | `ResourceType` name, e.g. `USER`, `CLIENT` |
+| `event.resourcePath` | Resource path |
+| `event.representation` | JSON representation, when `include-representation` is enabled |
+| `event.error` | Error code, when present |
+| `event.authRealmId` | Authenticating realm UUID |
+| `event.authRealmName` | Authenticating realm name |
+| `event.authClientId` | Authenticating client id |
+| `event.authUserId` | Authenticating user UUID |
+| `event.authIpAddress` | Authenticating user IP |
+| `event.detailsJson` | JSON-serialized admin event details map, when present |
+
+MDC entries are restored to their previous values immediately after the log call, so the fields do not leak across executor threads.
+
+#### Caveats
+
+This is a write-only sink. The query methods (`createQuery`, `createAdminQuery`) return empty result streams and the clear methods (`clear*`, `clearExpiredEvents`) are no-ops, so any Keycloak feature or REST endpoint that reads stored events (such as the Admin UI events tab) will return an empty result set. If you also need queryable storage, run a separate listener that writes to a queryable destination.
+
+#### Enabling
+
+Keycloak chooses exactly one `EventStoreProvider`, selected via the `events-store` SPI. To activate this provider, set the SPI's active provider id to `ext-event-mdc-logger-store` (see [Keycloak configuration providers](https://www.keycloak.org/server/configuration-provider)).
+
+Via CLI flag passed to `kc.sh start` / `kc.sh start-dev`:
+
+```
+--spi-events-store-provider=ext-event-mdc-logger-store
+```
+
+Via environment variable:
+
+```
+KC_SPI_EVENTS_STORE_PROVIDER=ext-event-mdc-logger-store
+```
+
+No further provider-specific configuration is required. To route the two loggers, configure JBoss log levels and handlers the same way as any other category, e.g.:
+
+```
+--log-level=info,io.phasetwo.keycloak.EVENT_LOGGER:info,io.phasetwo.keycloak.ADMIN_EVENT_LOGGER:info
+```
+
+Also make sure user and admin events are enabled on each realm whose events you want to capture (Realm settings > Events > Event settings).
 
 ### Webhooks
 

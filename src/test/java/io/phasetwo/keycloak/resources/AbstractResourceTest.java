@@ -50,7 +50,8 @@ public abstract class AbstractResourceTest {
   public static final KeycloakContainer container = initKeycloakContainer();
 
   private static KeycloakContainer initKeycloakContainer() {
-    KeycloakContainer keycloakContainer = new KeycloakContainer(KEYCLOAK_IMAGE)
+    KeycloakContainer keycloakContainer =
+        new KeycloakContainer(KEYCLOAK_IMAGE)
             .withContextPath("/auth")
             .withReuse(true)
             .withProviderClassesFrom("target/classes")
@@ -58,11 +59,13 @@ public abstract class AbstractResourceTest {
             .withCustomCommand("--spi-events-listener-ext-event-webhook-store-webhook-events=true")
             .withAccessToHost(true);
     if (isJacocoPresent()) {
-      keycloakContainer = keycloakContainer.withCopyFileToContainer(
-                      MountableFile.forHostPath("target/jacoco-agent/"),
-                      "/jacoco-agent"
-              )
-              .withEnv("JAVA_OPTS", "-XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -javaagent:/jacoco-agent/org.jacoco.agent-runtime.jar=destfile=/tmp/jacoco.exec");
+      keycloakContainer =
+          keycloakContainer
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath("target/jacoco-agent/"), "/jacoco-agent")
+              .withEnv(
+                  "JAVA_OPTS",
+                  "-XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -javaagent:/jacoco-agent/org.jacoco.agent-runtime.jar=destfile=/tmp/jacoco.exec");
     }
 
     return keycloakContainer;
@@ -94,7 +97,8 @@ public abstract class AbstractResourceTest {
     container.getDockerClient().stopContainerCmd(containerId).exec();
     if (isJacocoPresent()) {
       Files.createDirectories(Path.of("target", "jacoco-report"));
-      container.copyFileFromContainer("/tmp/jacoco.exec", "./target/jacoco-report/jacoco-%s.exec".formatted(containerShortId));
+      container.copyFileFromContainer(
+          "/tmp/jacoco.exec", "./target/jacoco-report/jacoco-%s.exec".formatted(containerShortId));
     }
     container.stop();
   }
