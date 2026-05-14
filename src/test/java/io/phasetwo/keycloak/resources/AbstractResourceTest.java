@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.resources;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
+import io.phasetwo.keycloak.events.MdcLoggerEventStoreProviderFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,19 +51,31 @@ public abstract class AbstractResourceTest {
   public static final KeycloakContainer container = initKeycloakContainer();
 
   private static KeycloakContainer initKeycloakContainer() {
-    KeycloakContainer keycloakContainer = new KeycloakContainer(KEYCLOAK_IMAGE)
+    KeycloakContainer keycloakContainer =
+        new KeycloakContainer(KEYCLOAK_IMAGE)
             .withContextPath("/auth")
             .withReuse(true)
             .withProviderClassesFrom("target/classes")
             .withProviderLibsFrom(getDeps())
             .withCustomCommand("--spi-events-listener-ext-event-webhook-store-webhook-events=true")
+            // Pin the event store to MdcLoggerEventStoreProvider with useJpa=true so admin events
+            // are dual-written to ADMIN_EVENT_ENTITY. The WEBHOOK_EVENT.ADMIN_EVENT_ID FK requires
+            // that row to exist; without useJpa=true the FK insert fails.
+            .withCustomCommand(
+                "--spi-events-store-provider=" + MdcLoggerEventStoreProviderFactory.PROVIDER_ID)
+            .withCustomCommand(
+                "--spi-events-store-"
+                    + MdcLoggerEventStoreProviderFactory.PROVIDER_ID
+                    + "-use-jpa=true")
             .withAccessToHost(true);
     if (isJacocoPresent()) {
-      keycloakContainer = keycloakContainer.withCopyFileToContainer(
-                      MountableFile.forHostPath("target/jacoco-agent/"),
-                      "/jacoco-agent"
-              )
-              .withEnv("JAVA_OPTS", "-XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -javaagent:/jacoco-agent/org.jacoco.agent-runtime.jar=destfile=/tmp/jacoco.exec");
+      keycloakContainer =
+          keycloakContainer
+              .withCopyFileToContainer(
+                  MountableFile.forHostPath(Path.of("target/jacoco-agent/"), 0755), "/jacoco-agent")
+              .withEnv(
+                  "JAVA_OPTS",
+                  "-XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -javaagent:/jacoco-agent/org.jacoco.agent-runtime.jar=destfile=/tmp/jacoco.exec");
     }
 
     return keycloakContainer;
@@ -94,7 +107,8 @@ public abstract class AbstractResourceTest {
     container.getDockerClient().stopContainerCmd(containerId).exec();
     if (isJacocoPresent()) {
       Files.createDirectories(Path.of("target", "jacoco-report"));
-      container.copyFileFromContainer("/tmp/jacoco.exec", "./target/jacoco-report/jacoco-%s.exec".formatted(containerShortId));
+      container.copyFileFromContainer(
+          "/tmp/jacoco.exec", "./target/jacoco-report/jacoco-%s.exec".formatted(containerShortId));
     }
     container.stop();
   }

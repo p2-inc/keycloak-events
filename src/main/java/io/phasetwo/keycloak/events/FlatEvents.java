@@ -1,0 +1,39 @@
+package io.phasetwo.keycloak.events;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.util.Map;
+import org.keycloak.util.JsonSerialization;
+
+public final class FlatEvents {
+
+  private FlatEvents() {}
+  
+  public static String serializeDetails(Map<String, String> details) {
+    if (details == null) {
+      return null;
+    }
+    try {
+      return JsonSerialization.writeValueAsString(details);
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to serialize admin event details", e);
+    }
+  }
+
+  public static Map<String, String> deserializeDetails(String detailsJson) {
+    if (detailsJson == null || detailsJson.trim().isEmpty()) {
+      return null;
+    }
+    try {
+      return JsonSerialization.readValue(detailsJson, new TypeReference<Map<String, String>>() {});
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to deserialize event details", e);
+    }
+  }
+
+  public static void putIfNotNull(Map<String, Object> map, String key, Object value) {
+    if (value != null) {
+      map.put(key, value);
+    }
+  }
+}
