@@ -9,7 +9,7 @@ public final class FlatEvents {
 
   private FlatEvents() {}
   
-  protected static String serializeDetails(Map<String, String> details) {
+  public static String serializeDetails(Map<String, String> details) {
     if (details == null) {
       return null;
     }
@@ -20,7 +20,7 @@ public final class FlatEvents {
     }
   }
 
-  protected static Map<String, String> deserializeDetails(String detailsJson) {
+  public static Map<String, String> deserializeDetails(String detailsJson) {
     if (detailsJson == null || detailsJson.trim().isEmpty()) {
       return null;
     }
@@ -31,7 +31,7 @@ public final class FlatEvents {
     }
   }
 
-  protected static void putIfNotNull(Map<String, Object> map, String key, Object value) {
+  public static void putIfNotNull(Map<String, Object> map, String key, Object value) {
     if (value != null) {
       map.put(key, value);
     }
