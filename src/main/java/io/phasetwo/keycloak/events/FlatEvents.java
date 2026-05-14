@@ -5,7 +5,10 @@ import java.io.IOException;
 import java.util.Map;
 import org.keycloak.util.JsonSerialization;
 
-public class FlatEvents {
+public final class FlatEvents {
+
+  private FlatEvents() {}
+  
   protected static String serializeDetails(Map<String, String> details) {
     if (details == null) {
       return null;
