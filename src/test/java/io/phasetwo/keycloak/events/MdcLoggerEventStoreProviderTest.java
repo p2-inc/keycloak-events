@@ -59,6 +59,7 @@ public class MdcLoggerEventStoreProviderTest {
         .useTls()
         .withProviderClassesFrom("target/classes")
         .withCustomCommand("--spi-events-store-provider=" + PROVIDER_ID)
+        .withCustomCommand("--spi-events-store-" + PROVIDER_ID + "-use-jpa=true")
         .withCustomCommand("--log-console-output=json")
         .withAccessToHost(true)
         .withLogConsumer(capture);
@@ -211,7 +212,7 @@ public class MdcLoggerEventStoreProviderTest {
   }
 
   @Test
-  public void adminEventsTabReturnsEmpty() {
+  public void adminEventsTabReturnsJpaResults() {
     UserRepresentation user = new UserRepresentation();
     user.setUsername("query-check-" + System.currentTimeMillis());
     user.setEnabled(true);
@@ -219,11 +220,16 @@ public class MdcLoggerEventStoreProviderTest {
       assertThat(resp.getStatus(), is(201));
     }
 
-    // The MDC store implements createAdminQuery/createQuery as null/no-op so the admin events
-    // tab is empty even though the event was emitted to the log.
-    assertThat(keycloak.realm(REALM).getAdminEvents(), is(notNullValue()));
-    assertThat(keycloak.realm(REALM).getAdminEvents().isEmpty(), is(true));
-    assertThat(keycloak.realm(REALM).getEvents().isEmpty(), is(true));
+    // With useJpa=true, createAdminQuery/createQuery delegate to JpaEventStoreProvider so the
+    // admin events tab returns the events written by the dual-write path.
+    await(
+        "admin events query to include the CREATE USER event",
+        () ->
+            keycloak.realm(REALM).getAdminEvents().stream()
+                .filter(e -> "CREATE".equals(e.getOperationType()))
+                .filter(
+                    e -> e.getResourcePath() != null && e.getResourcePath().startsWith("users/"))
+                .findFirst());
   }
 
   @Test

@@ -14,6 +14,8 @@ public class MdcLoggerEventStoreProviderFactory implements EventStoreProviderFac
 
   public static final String PROVIDER_ID = "ext-event-mdc-logger-store";
 
+  private boolean useJpa = false;
+
   @Override
   public String getId() {
     return PROVIDER_ID;
@@ -21,11 +23,14 @@ public class MdcLoggerEventStoreProviderFactory implements EventStoreProviderFac
 
   @Override
   public EventStoreProvider create(KeycloakSession session) {
-    return new MdcLoggerEventStoreProvider(session);
+    return new MdcLoggerEventStoreProvider(session, useJpa);
   }
 
   @Override
-  public void init(Config.Scope scope) {}
+  public void init(Config.Scope scope) {
+    useJpa = scope.getBoolean("useJpa", false);
+    log.infof("useJpa %b", useJpa);
+  }
 
   @Override
   public void postInit(KeycloakSessionFactory factory) {}

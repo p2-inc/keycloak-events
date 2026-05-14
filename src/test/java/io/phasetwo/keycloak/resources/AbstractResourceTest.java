@@ -62,7 +62,7 @@ public abstract class AbstractResourceTest {
       keycloakContainer =
           keycloakContainer
               .withCopyFileToContainer(
-                  MountableFile.forHostPath("target/jacoco-agent/"), "/jacoco-agent")
+                  MountableFile.forHostPath(Path.of("target/jacoco-agent/"), 0755), "/jacoco-agent")
               .withEnv(
                   "JAVA_OPTS",
                   "-XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -javaagent:/jacoco-agent/org.jacoco.agent-runtime.jar=destfile=/tmp/jacoco.exec");
