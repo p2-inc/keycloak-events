@@ -12,8 +12,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
+import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
@@ -21,6 +21,7 @@ import org.keycloak.util.JsonSerialization;
 @JBossLog
 public class HttpSenderEventListenerProvider extends SenderEventListenerProvider {
 
+  private final HttpClient httpClient;
   protected static final String TARGET_URI = "targetUri";
   protected static final String RETRY = "retry";
   protected static final String SHARED_SECRET = "sharedSecret";
@@ -31,8 +32,10 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected static final String BACKOFF_MULTIPLIER = "backoffMultiplier";
   protected static final String BACKOFF_RANDOMIZATION_FACTOR = "backoffRandomizationFactor";
 
-  public HttpSenderEventListenerProvider(KeycloakSession session, ScheduledExecutorService exec) {
+  public HttpSenderEventListenerProvider(
+      KeycloakSession session, ScheduledExecutorService exec, CloseableHttpClient httpClient) {
     super(session, exec);
+    this.httpClient = httpClient;
   }
 
   @Override
@@ -71,14 +74,13 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
     log.debugf("attempting send to %s", targetUri);
-    try (CloseableHttpClient http = HttpClients.createDefault()) {
-      LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
-      sharedSecret.ifPresent(
-          secret ->
-              request.header(
-                  "X-Keycloak-Signature",
-                  hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
-      LegacySimpleHttp.Response response = request.asResponse();
+    LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, httpClient).json(task.getEvent());
+    sharedSecret.ifPresent(
+        secret ->
+            request.header(
+                "X-Keycloak-Signature",
+                hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+    try (LegacySimpleHttp.Response response = request.asResponse()) {
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
       doAfterSend(task, status);
