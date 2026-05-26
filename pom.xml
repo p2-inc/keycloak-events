@@ -3,7 +3,7 @@
   <groupId>io.phasetwo.keycloak</groupId>
   <artifactId>keycloak-events</artifactId>
   <packaging>jar</packaging>
-  <version>0.54-SNAPSHOT</version>
+  <version>0.56-SNAPSHOT</version>
 
   <name>Phase Two Keycloak Events</name>
   <description>Useful Keycloak EventListener implementations and utilities.</description>
