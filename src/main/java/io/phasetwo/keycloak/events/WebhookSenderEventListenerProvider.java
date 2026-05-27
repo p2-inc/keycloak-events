@@ -29,6 +29,9 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.util.JsonSerialization;
 
+import static lombok.Lombok.sneakyThrow;
+import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
+
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
 
@@ -144,7 +147,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   /** Schedule dispatch to all webhooks and system */
   private void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
-    KeycloakModelUtils.runJobInTransaction(
+    runJobInTransaction(
         factory,
         (session) -> {
           if (type.keycloakNative()) {
@@ -299,11 +302,17 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   @Override
-  void send(SenderTask task) throws SenderException, IOException {
+  void send(SenderTask task){
     String targetUri = task.getProperties().get("url");
     Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
     Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
-    send(task, targetUri, sharedSecret, hmacAlgorithm);
+    runJobInTransaction(factory, session -> {
+          try {
+              send(task, targetUri, sharedSecret, hmacAlgorithm, session);
+          } catch (SenderException e) {
+              throw sneakyThrow(e);
+          }
+      });
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {
