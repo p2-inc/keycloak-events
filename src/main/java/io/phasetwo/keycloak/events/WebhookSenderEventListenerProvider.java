@@ -18,7 +18,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
@@ -28,6 +27,9 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.util.JsonSerialization;
+
+import static lombok.Lombok.sneakyThrow;
+import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
 
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
@@ -49,9 +51,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   public WebhookSenderEventListenerProvider(
       KeycloakSession session,
       ScheduledExecutorService exec,
-      CloseableHttpClient httpClient,
       boolean storeWebhookEvents) {
-    super(session, exec, httpClient);
+    super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
@@ -142,7 +143,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   /** Schedule dispatch to all webhooks and system */
   private void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
-    KeycloakModelUtils.runJobInTransaction(
+    runJobInTransaction(
         factory,
         (session) -> {
           if (type.keycloakNative()) {
@@ -179,7 +180,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       log.tracef("%s event type. Skipping send storage.", customEvent.getType());
       return;
     }
-    KeycloakModelUtils.runJobInTransaction(
+    runJobInTransaction(
         factory,
         (session) -> {
           RealmModel realm = session.realms().getRealm(customEvent.getRealmId());
@@ -251,11 +252,17 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   @Override
-  void send(SenderTask task) throws SenderException, IOException {
+  void send(SenderTask task){
     String targetUri = task.getProperties().get("url");
     Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
     Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
-    send(task, targetUri, sharedSecret, hmacAlgorithm);
+    runJobInTransaction(factory, session -> {
+          try {
+              send(task, targetUri, sharedSecret, hmacAlgorithm, session);
+          } catch (SenderException e) {
+              throw sneakyThrow(e);
+          }
+      });
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {

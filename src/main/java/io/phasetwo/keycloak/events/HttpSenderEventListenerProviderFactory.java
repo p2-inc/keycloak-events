@@ -7,7 +7,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
-import org.keycloak.connections.httpclient.HttpClientProvider;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventListenerProviderFactory;
 import org.keycloak.models.KeycloakSession;
@@ -27,9 +26,8 @@ public class HttpSenderEventListenerProviderFactory extends MultiEventListenerPr
 
   @Override
   protected EventListenerProvider configure(KeycloakSession session, Map<String, Object> config) {
-    var httpClient = session.getProvider(HttpClientProvider.class).getHttpClient();
     HttpSenderEventListenerProvider provider =
-        new HttpSenderEventListenerProvider(session, exec, httpClient);
+        new HttpSenderEventListenerProvider(session, exec);
     log.debugf("Configuring %s with %s", provider.getClass().getName(), configToString(config));
     provider.setConfig(config);
     return provider;
