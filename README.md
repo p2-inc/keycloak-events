@@ -261,17 +261,59 @@ The webhook object has this format:
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
 
+#### SPI configuration
+
+The `ext-event-webhook` listener exposes two boolean SPI config variables that control what happens after each webhook send attempt. They are independent — either, both, or neither may be enabled.
+
+| SPI config | CLI flag | Env var | Default | Description |
+| --- | --- | --- | --- | --- |
+| `storeWebhookEvents` | `--spi-events-listener-ext-event-webhook-store-webhook-events=true` | `KC_SPI_EVENTS_LISTENER_EXT_EVENT_WEBHOOK_STORE_WEBHOOK_EVENTS=true` | `false` | Persist webhook events and send attempts via the configured `EventStoreProvider`. Enables the `/sends` REST endpoints. |
+| `logWebhookEvents` | `--spi-events-listener-ext-event-webhook-log-webhook-events=true` | `KC_SPI_EVENTS_LISTENER_EXT_EVENT_WEBHOOK_LOG_WEBHOOK_EVENTS=true` | `false` | Emit one JBoss log line per webhook send attempt with the send details in the MDC. See [Logging webhook send attempts](#logging-webhook-send-attempts). |
+
+Both pathways share the following early-return rules, applied before either storage or logging happens:
+
+- Skipped when the send was for the system catch-all webhook (i.e. `WEBHOOK_URI` rather than a managed webhook entity).
+- Skipped for non-native event types (`SYSTEM`) — only `USER` and `ADMIN` events produce a store/log record.
+- Triggered only when an HTTP response was received from the target. Transport-level failures (connection refused, timeout, DNS) do not produce a store/log record; they are retried per the backoff policy.
+
 #### Storing webhook events and sends
 
-This extension contains the functionality to store and retrieve the payload that was sent to a webhook, as well as the sending status. In order to enable this functionality, you must set the SPI config variable `--spi-events-listener-ext-event-webhook-store-webhook-events=true` and ensure that your realm settings have events and admin events enabled, which causes them to be stored using the configured `EventStoreProvider`.
-
-This also enables a few additional custom REST endpoints for querying information about the payload and status of webhook sends.
+When `storeWebhookEvents=true` and your realm settings have events and admin events enabled, payloads and send statuses are persisted using the configured `EventStoreProvider`. This also enables a few additional custom REST endpoints for querying information about the payload and status of webhook sends.
 
 | Path                               | Method   | Payload        | Returns                 | Description    |
 | ---------------------------------- | -------- | -------------- | ----------------------- | -------------- |
 | `/auth/realms/:realm/webhooks/:id/sends`             | `GET`    | `first`, `max` query params for pagination | Webhook send objects (brief)       | Get webhook sends        |
 | `/auth/realms/:realm/webhooks/:id/sends/:sid`        | `GET`    |                                            | Webhook send object (with payload) | Get a webhook send       |
 | `/auth/realms/:realm/webhooks/:id/sends/:sid/resend` | `POST`   |                                            | `202`                              | Resend a webhook payload |
+
+#### Logging webhook send attempts
+
+When `logWebhookEvents=true`, every webhook send attempt that receives an HTTP response emits one `INFO`-level message with the body `Webhook Send` to the named logger:
+
+- `io.phasetwo.keycloak.WEBHOOK_SEND_LOGGER`
+
+The send details are placed in the [MDC](https://docs.jboss.org/jbosslogging/latest/org/jboss/logging/MDC.html) under the `webhook.` prefix for the duration of the log call only, so downstream log appenders (e.g. a JSON encoder shipping to Loki, Elasticsearch, or CloudWatch) can index them as first-class fields. Entries are restored on close, so they do not leak across executor threads.
+
+MDC keys (omitted when null):
+
+| Key | Value |
+| --- | --- |
+| `webhook.eventType` | `KeycloakEventType` name — `USER` or `ADMIN` |
+| `webhook.eventId` | Source Keycloak event id (typically a UUID) |
+| `webhook.webhookId` | Id of the `WebhookModel` that defines the endpoint |
+| `webhook.sendId` | Id generated for this unique send attempt (matches the `uid` on the payload) |
+| `webhook.status` | HTTP status code returned by the target |
+| `webhook.retryNum` | Attempt number, starting at `1` on the first try and incrementing on each retry |
+| `webhook.sentAt` | Epoch millis at the time the response was received |
+| `webhook.rawPayload` | JSON payload that was sent (the same body posted to the webhook URL) |
+
+This pathway does **not** depend on `storeWebhookEvents` and does not write to the database; it is suitable for environments that want webhook delivery telemetry shipped to a log pipeline rather than queried back through Keycloak.
+
+To route the logger, configure JBoss log levels and handlers the same way as any other category, e.g.:
+
+```
+--log-level=info,io.phasetwo.keycloak.WEBHOOK_SEND_LOGGER:info
+```
 
 
 ##### Example

@@ -17,7 +17,7 @@ public class WebhookSenderEventListenerProviderFactory
   public static final String PROVIDER_ID = "ext-event-webhook";
 
   private ScheduledExecutorService exec;
-  private boolean storeWebhookEvents = false;
+  private WebhookSenderConfig config = new WebhookSenderConfig(false, false);
 
   @Override
   public String getId() {
@@ -26,13 +26,15 @@ public class WebhookSenderEventListenerProviderFactory
 
   @Override
   public WebhookSenderEventListenerProvider create(KeycloakSession session) {
-    return new WebhookSenderEventListenerProvider(session, exec, storeWebhookEvents);
+    return new WebhookSenderEventListenerProvider(session, exec, config);
   }
 
   @Override
   public void init(Config.Scope scope) {
-    storeWebhookEvents = scope.getBoolean("storeWebhookEvents", false);
-    log.infof("storeWebhookEvents %b", storeWebhookEvents);
+    boolean storeWebhookEvents = scope.getBoolean("storeWebhookEvents", false);
+    boolean logWebhookEvents = scope.getBoolean("logWebhookEvents", false);
+    config = new WebhookSenderConfig(storeWebhookEvents, logWebhookEvents);
+    log.infof("storeWebhookEvents %b, logWebhookEvents %b", storeWebhookEvents, logWebhookEvents);
 
     exec =
         MoreExecutors.getExitingScheduledExecutorService(

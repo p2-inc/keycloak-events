@@ -35,6 +35,10 @@ public final class LogContext implements AutoCloseable {
     return new LogContext(event.toMap(), prefix);
   }
 
+  public static LogContext with(FlatWebhook webhook, String prefix) {
+    return new LogContext(webhook.toMap(), prefix);
+  }
+
   @Override
   public void close() {
     previousValues.forEach(

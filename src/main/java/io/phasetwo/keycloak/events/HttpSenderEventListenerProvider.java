@@ -70,6 +70,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected void send(
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
+    task.incrementAndGetAttempt();
     log.debugf("attempting send to %s", targetUri);
     try (CloseableHttpClient http = HttpClients.createDefault()) {
       LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());

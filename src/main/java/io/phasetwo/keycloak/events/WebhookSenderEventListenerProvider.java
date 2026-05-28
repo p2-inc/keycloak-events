@@ -18,6 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
+import org.jboss.logging.Logger;
 import org.keycloak.events.Event;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
@@ -35,10 +36,16 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
   private static final String WEBHOOK_ALGORITHM_ENV = "WEBHOOK_ALGORITHM";
 
+  public static final String WEBHOOK_SEND_LOGGER_NAME = "io.phasetwo.keycloak.WEBHOOK_SEND_LOGGER";
+  public static final String MDC_KEY_PREFIX = "webhook.";
+  public static final String LOG_MESSAGE = "Webhook Send";
+
+  private static final Logger WEBHOOK_SEND_LOGGER = Logger.getLogger(WEBHOOK_SEND_LOGGER_NAME);
+
   private final RunnableTransaction runnableTrx;
   private final KeycloakSessionFactory factory;
 
-  private final boolean storeWebhookEvents;
+  private final WebhookSenderConfig config;
   private final WebhookProvider webhooks;
 
   private final String systemUri;
@@ -46,7 +53,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final String systemAlgorithm;
 
   public WebhookSenderEventListenerProvider(
-      KeycloakSession session, ScheduledExecutorService exec, boolean storeWebhookEvents) {
+      KeycloakSession session, ScheduledExecutorService exec, WebhookSenderConfig config) {
     super(session, exec);
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
@@ -55,8 +62,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
     this.systemAlgorithm = System.getenv(WEBHOOK_ALGORITHM_ENV);
-    // should we store webhook events and sends?
-    this.storeWebhookEvents = storeWebhookEvents;
+    this.config = config;
     this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
@@ -90,8 +96,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   private synchronized void storeEvent(
       KeycloakSession session, KeycloakEventType type, ExtendedAdminEvent event) {
-    if (!storeWebhookEvents) {
-      log.tracef("storeWebhookEvents is %s. skipping...", storeWebhookEvents);
+    if (!config.shouldStoreWebhookEvents()) {
+      log.tracef("storeWebhookEvents is %s. skipping...", config.shouldStoreWebhookEvents());
       return;
     }
     if (!type.keycloakNative()) {
@@ -169,19 +175,37 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   @Override
   protected synchronized void afterSend(final SenderTask task, final int httpStatus) {
-    if (task.getProperties().get("webhookId") == null) return;
+    final String webhookId = task.getProperties().get("webhookId");
+    if (webhookId == null) return;
     final ExtendedAdminEvent customEvent = (ExtendedAdminEvent) task.getEvent();
-    if (!KeycloakEventType.fromTypeString(customEvent.getType()).keycloakNative()) {
+    final KeycloakEventType eventType = KeycloakEventType.fromTypeString(customEvent.getType());
+    if (!eventType.keycloakNative()) {
       log.tracef("%s event type. Skipping send storage.", customEvent.getType());
       return;
     }
+
+    final Date sentAt = new Date();
+
+    if (config.shouldStoreWebhookEvents()) {
+      storeWebhookSend(task, customEvent, webhookId, httpStatus, sentAt);
+    }
+    if (config.shouldLogWebhookEvents()) {
+      logWebhookSend(task, customEvent, eventType, webhookId, httpStatus, sentAt);
+    }
+  }
+
+  private void storeWebhookSend(
+      final SenderTask task,
+      final ExtendedAdminEvent customEvent,
+      final String webhookId,
+      final int httpStatus,
+      final Date sentAt) {
     KeycloakModelUtils.runJobInTransaction(
         factory,
         (session) -> {
           RealmModel realm = session.realms().getRealm(customEvent.getRealmId());
           WebhookProvider webhooks = session.getProvider(WebhookProvider.class);
-          WebhookModel webhook =
-              webhooks.getWebhookById(realm, task.getProperties().get("webhookId"));
+          WebhookModel webhook = webhooks.getWebhookById(realm, webhookId);
           WebhookEventModel event =
               webhooks.getEvent(
                   realm,
@@ -200,9 +224,37 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
             }
             webhookSend.setStatus(httpStatus);
             webhookSend.incrementRetries();
-            webhookSend.setSentAt(new Date());
+            webhookSend.setSentAt(sentAt);
           }
         });
+  }
+
+  private void logWebhookSend(
+      final SenderTask task,
+      final ExtendedAdminEvent customEvent,
+      final KeycloakEventType eventType,
+      final String webhookId,
+      final int httpStatus,
+      final Date sentAt) {
+    String rawPayload = null;
+    try {
+      rawPayload = JsonSerialization.writeValueAsString(customEvent);
+    } catch (IOException e) {
+      log.warnf(e, "Unable to serialize webhook payload for logging [%s]", customEvent.getUid());
+    }
+    FlatWebhook flat =
+        new FlatWebhook(
+            eventType.name(),
+            customEvent.getId(),
+            webhookId,
+            customEvent.getUid(),
+            httpStatus,
+            task.getAttempt(),
+            sentAt.getTime(),
+            rawPayload);
+    try (LogContext ctx = LogContext.with(flat, MDC_KEY_PREFIX)) {
+      WEBHOOK_SEND_LOGGER.info(LOG_MESSAGE);
+    }
   }
 
   public void schedule(WebhookModel webhook, ExtendedAdminEvent customEvent) {
