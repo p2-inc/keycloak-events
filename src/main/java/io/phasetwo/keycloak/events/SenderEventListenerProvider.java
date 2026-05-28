@@ -60,6 +60,7 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
   class SenderTask {
     private final Object event;
     private final BackOff backOff;
+    private int attempt = 0;
     private Map<String, String> properties = Maps.newHashMap();
 
     public SenderTask(Object event, BackOff backOff) {
@@ -77,6 +78,14 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
 
     public Map<String, String> getProperties() {
       return this.properties;
+    }
+
+    public int getAttempt() {
+      return this.attempt;
+    }
+
+    public int incrementAndGetAttempt() {
+      return ++attempt;
     }
 
     @Override

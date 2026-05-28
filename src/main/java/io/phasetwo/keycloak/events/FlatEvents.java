@@ -8,7 +8,7 @@ import org.keycloak.util.JsonSerialization;
 public final class FlatEvents {
 
   private FlatEvents() {}
-  
+
   public static String serializeDetails(Map<String, String> details) {
     if (details == null) {
       return null;
