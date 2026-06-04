@@ -22,7 +22,19 @@ The rate of breaking changes upstream in Keycloak make it impossible for us to s
 
 ## Installation
 
-The maven build can be triggered by running `mvn clean install`. It uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `providers` directory (for Quarkus) or `standalone/deployments` directory (for legacy) and rebuild/restart keycloak.
+The maven build can be triggered by running `mvn clean install`. It uses the shade plugin to package a fat-jar with all dependencies. Put the jar in your `providers` directory (for Quarkus) or `standalone/deployments` directory (for legacy) and rebuild/restart keycloak. The build enforces Google Java formatting standards via [Spotless](https://github.com/diffplug/spotless); run `mvn spotless:apply` to auto-format your code before committing.
+
+### Code formatting
+
+Spotless replaces the previously used Spotify `fmt-maven-plugin`. Use `mvn spotless:check` to verify formatting and `mvn spotless:apply` to fix it.
+
+To enforce formatting automatically before every push, install the provided git pre-push hook:
+
+```
+mvn spotless:install-git-pre-push-hook
+```
+
+When you push, the hook runs `spotless:check`. If violations are found, it automatically runs `spotless:apply`, aborts the push, and lets you review and commit the formatted files before retrying.
 
 ### Releases
 
