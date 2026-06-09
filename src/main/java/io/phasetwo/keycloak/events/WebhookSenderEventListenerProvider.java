@@ -329,7 +329,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     ExtendedAuthDetails extendedAuthDetails = extendedAdminEvent.getAuthDetails();
     if (!Strings.isNullOrEmpty(extendedAuthDetails.getUserId())) {
       UserModel user = session.users().getUserById(authRealm, extendedAuthDetails.getUserId());
-      extendedAuthDetails.setUsername(user.getUsername());
+      if (user != null) {
+        extendedAuthDetails.setUsername(user.getUsername());
+      }
     }
 
     // add username if resource is a user
