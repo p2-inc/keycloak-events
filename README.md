@@ -210,7 +210,17 @@ This is a write-only sink. The query methods (`createQuery`, `createAdminQuery`)
 
 #### Enabling
 
-Keycloak chooses exactly one `EventStoreProvider`, selected via the `events-store` SPI. To activate this provider, set the SPI's active provider id to `ext-event-mdc-logger-store` (see [Keycloak configuration providers](https://www.keycloak.org/server/configuration-provider)).
+Keycloak chooses exactly one `EventStoreProvider`, selected via the `events-store` SPI. Activating this provider takes two steps.
+
+**1. Make the provider available.** The factory implements `EnvironmentDependentProviderFactory`, so it only registers when explicitly switched on via either the `EXT_EVENT_MDC_LOGGER_ENABLED` environment variable or the `ext.event.mdc-logger.enabled` system property:
+
+```
+EXT_EVENT_MDC_LOGGER_ENABLED=true
+```
+
+This flag is read at Keycloak's **build (augmentation) time**, so it must be present when `kc.sh build` runs (and for the auto-build performed by a non-optimized `kc.sh start`). If it is not set, the provider is filtered out and selecting it in step 2 fails the build with `Failed to find provider ext-event-mdc-logger-store for eventsStore`.
+
+**2. Select it as the active `events-store` provider** (see [Keycloak configuration providers](https://www.keycloak.org/server/configuration-provider)).
 
 Via CLI flag passed to `kc.sh start` / `kc.sh start-dev`:
 

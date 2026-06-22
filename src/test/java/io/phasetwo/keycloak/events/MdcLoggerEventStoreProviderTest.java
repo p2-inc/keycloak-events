@@ -58,6 +58,7 @@ public class MdcLoggerEventStoreProviderTest {
         .withReuse(false)
         .useTls()
         .withProviderClassesFrom("target/classes")
+        .withEnv("EXT_EVENT_MDC_LOGGER_ENABLED", "true")
         .withCustomCommand("--spi-events-store-provider=" + PROVIDER_ID)
         .withCustomCommand("--spi-events-store-" + PROVIDER_ID + "-use-jpa=true")
         .withCustomCommand("--log-console-output=json")
