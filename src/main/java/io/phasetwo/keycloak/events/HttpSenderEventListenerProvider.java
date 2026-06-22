@@ -34,8 +34,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected static final String BACKOFF_MULTIPLIER = "backoffMultiplier";
   protected static final String BACKOFF_RANDOMIZATION_FACTOR = "backoffRandomizationFactor";
 
-  public HttpSenderEventListenerProvider(
-          KeycloakSession session, ScheduledExecutorService exec) {
+  public HttpSenderEventListenerProvider(KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
     this.sessionFactory = session.getKeycloakSessionFactory();
   }
@@ -69,17 +68,23 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   @Override
   void send(SenderTask task) throws SenderException, IOException {
-    runJobInTransaction(sessionFactory, session -> {
-      try {
-        send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm(), session);
-      } catch (SenderException e) {
-        throw sneakyThrow(e);
-      }
-    });
+    runJobInTransaction(
+        sessionFactory,
+        session -> {
+          try {
+            send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm(), session);
+          } catch (SenderException e) {
+            throw sneakyThrow(e);
+          }
+        });
   }
 
   protected void send(
-      SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm, KeycloakSession session)
+      SenderTask task,
+      String targetUri,
+      Optional<String> sharedSecret,
+      Optional<String> algorithm,
+      KeycloakSession session)
       throws SenderException {
     task.incrementAndGetAttempt();
     log.debugf("attempting send to %s", targetUri);

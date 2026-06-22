@@ -1,5 +1,8 @@
 package io.phasetwo.keycloak.events;
 
+import static lombok.Lombok.sneakyThrow;
+import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
+
 import com.google.common.base.Strings;
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookEventModel;
@@ -28,9 +31,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.util.JsonSerialization;
-
-import static lombok.Lombok.sneakyThrow;
-import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
 
 @JBossLog
 public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerProvider {
@@ -302,17 +302,19 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   @Override
-  void send(SenderTask task){
+  void send(SenderTask task) {
     String targetUri = task.getProperties().get("url");
     Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
     Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
-    runJobInTransaction(factory, session -> {
+    runJobInTransaction(
+        factory,
+        session -> {
           try {
-              send(task, targetUri, sharedSecret, hmacAlgorithm, session);
+            send(task, targetUri, sharedSecret, hmacAlgorithm, session);
           } catch (SenderException e) {
-              throw sneakyThrow(e);
+            throw sneakyThrow(e);
           }
-      });
+        });
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {
