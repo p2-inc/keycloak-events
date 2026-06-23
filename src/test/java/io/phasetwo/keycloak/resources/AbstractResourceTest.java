@@ -1,7 +1,6 @@
 package io.phasetwo.keycloak.resources;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
-import io.phasetwo.keycloak.events.MdcLoggerEventStoreProviderFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -57,16 +56,6 @@ public abstract class AbstractResourceTest {
             .withReuse(true)
             .withProviderClassesFrom("target/classes")
             .withProviderLibsFrom(getDeps())
-            .withCustomCommand("--spi-events-listener-ext-event-webhook-store-webhook-events=true")
-            // Pin the event store to MdcLoggerEventStoreProvider with useJpa=true so admin events
-            // are dual-written to ADMIN_EVENT_ENTITY. The WEBHOOK_EVENT.ADMIN_EVENT_ID FK requires
-            // that row to exist; without useJpa=true the FK insert fails.
-            .withCustomCommand(
-                "--spi-events-store-provider=" + MdcLoggerEventStoreProviderFactory.PROVIDER_ID)
-            .withCustomCommand(
-                "--spi-events-store-"
-                    + MdcLoggerEventStoreProviderFactory.PROVIDER_ID
-                    + "-use-jpa=true")
             .withAccessToHost(true);
     if (isJacocoPresent()) {
       keycloakContainer =
