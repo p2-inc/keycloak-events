@@ -275,6 +275,9 @@ The webhook object has this format:
   "enabled": "true",
   "url": "https://example.com/some/webhook",
   "secret": "ofj09saP4",
+  "authType": "hmac",
+  "algorithm": "HmacSHA256",
+  "audience": null,
   "eventTypes": ["*"],
   "createdBy": "ff730b72-a421-4f6e-9e4e-7fc7f53bac88",
   "createdAt": "2021-04-21T18:25:43-05:00"
@@ -282,6 +285,39 @@ The webhook object has this format:
 ```
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+
+#### Authenticating the webhook payload
+
+Each webhook may authenticate its payload one of two ways, selected by the `authType` field:
+
+| `authType` | Header | How the receiver verifies |
+| --- | --- | --- |
+| `hmac` (default) | `X-Keycloak-Signature` | Recompute the keyed-HMAC of the raw request body using the shared `secret` and compare. |
+| `bearer` | `Authorization: Bearer <jwt>` | Verify a short-lived JWT signed by the realm's active signing key against the realm's JWKS. No shared secret is required. |
+
+**HMAC (shared secret).** Set `secret` (and optionally `algorithm`, defaulting to `HmacSHA256`, or `HmacSHA1` for backwards compatibility). The RFC2104 signature of the request body is sent in the `X-Keycloak-Signature` header. This is the default and is unchanged from previous versions — webhooks created without an `authType` continue to behave exactly as before.
+
+**Bearer JWT (asymmetric, no shared secret).** Set `authType` to `bearer` and provide an `audience`. On each send a fresh JWT is minted, signed with the realm's active signing key (`algorithm` defaults to `RS256`), and sent in the `Authorization: Bearer` header. The receiver validates it against the realm's published keys — the same keys used for access tokens — so no secret needs to be exchanged or stored:
+
+```json
+{
+  "jwks_uri": "https://keycloak.example.com/realms/my-realm/protocol/openid-connect/certs",
+  "issuer": "https://keycloak.example.com/realms/my-realm",
+  "audience": "https://receiver.example.com"
+}
+```
+
+The token carries these claims:
+
+| Claim | Value |
+| --- | --- |
+| `iss` | The realm issuer, e.g. `https://keycloak.example.com/realms/my-realm` |
+| `aud` | The configured `audience` |
+| `iat` / `exp` | Issued-at and expiry. Lifespan defaults to 300s; override with the `WEBHOOK_JWT_LIFESPAN_SECONDS` env var. A fresh token is minted for every send attempt, including retries. |
+| `jti` | A unique token id |
+| `request_body_sha256` | Hex-encoded SHA-256 of the exact request body, binding the token to the payload so it cannot be replayed against a different body. |
+
+The token issuer is resolved, in order, from: the realm's configured frontend URL, the `KC_HOSTNAME` environment variable, and finally the base URI of the request that produced the event. For the issuer to match the realm's real token issuer in production (where webhooks are dispatched on a background thread with no request context), configure the realm frontend URL or `KC_HOSTNAME`.
 
 #### SPI configuration
 
@@ -373,6 +409,8 @@ It is possible to disable the scripts run by the `ScriptEventListenerProvider` b
 
 #### Webhooks
 There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
+
+The catch-all webhook can also authenticate with a bearer JWT instead of an HMAC shared secret (see [Authenticating the webhook payload](#authenticating-the-webhook-payload)). Set `WEBHOOK_AUTH_TYPE=bearer` and `WEBHOOK_AUDIENCE=<audience>`; `WEBHOOK_ALGORITHM` selects the JWS algorithm (defaults to `RS256`).
 
 ---
 

@@ -10,15 +10,17 @@ import io.phasetwo.keycloak.representation.Credential;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import io.phasetwo.keycloak.representation.WebhookSend;
-import jakarta.validation.constraints.*;
-import jakarta.ws.rs.*;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
@@ -76,6 +78,9 @@ public class WebhooksResource extends AbstractAdminResource {
     webhook.setCreatedAt(w.getCreatedAt());
     webhook.setRealm(w.getRealm().getName());
     webhook.setEventTypes(w.getEventTypes());
+    webhook.setAlgorithm(w.getAlgorithm());
+    webhook.setAuthType(w.getAuthType());
+    webhook.setAudience(w.getAudience());
     // no secret
     return webhook;
   }
@@ -302,10 +307,21 @@ public class WebhooksResource extends AbstractAdminResource {
     if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
       w.setSecret(rep.getSecret());
     }
+    String authType =
+        (rep.getAuthType() != null && !"".equals(rep.getAuthType()))
+            ? rep.getAuthType().toLowerCase()
+            : WebhookModel.AUTH_TYPE_HMAC;
+    w.setAuthType(authType);
     if (rep.getAlgorithm() != null && !"".equals(rep.getAlgorithm())) {
       w.setAlgorithm(rep.getAlgorithm());
     } else {
-      w.setAlgorithm("HmacSHA256");
+      w.setAlgorithm(
+          WebhookModel.AUTH_TYPE_BEARER.equals(authType)
+              ? WebhookModel.DEFAULT_BEARER_ALGORITHM
+              : WebhookModel.DEFAULT_HMAC_ALGORITHM);
+    }
+    if (rep.getAudience() != null && !"".equals(rep.getAudience())) {
+      w.setAudience(rep.getAudience());
     }
   }
 

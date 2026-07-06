@@ -1,7 +1,7 @@
 package io.phasetwo.keycloak;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.ImmutableList;
@@ -69,6 +69,37 @@ public class Helpers {
     rep.setEnabled(true);
     rep.setUrl(url);
     rep.setSecret(secret);
+    if (types == null) {
+      rep.setEventTypes(ImmutableSet.of("*"));
+    } else {
+      rep.setEventTypes(types);
+    }
+
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl, httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .json(rep)
+            .asResponse();
+    assertThat(response.getStatus(), is(201));
+    assertNotNull(response.getFirstHeader("Location"));
+    String loc = response.getFirstHeader("Location");
+    String id = loc.substring(loc.lastIndexOf("/") + 1);
+    return id;
+  }
+
+  public static String createBearerWebhook(
+      Keycloak keycloak,
+      CloseableHttpClient httpClient,
+      String baseUrl,
+      String url,
+      String audience,
+      Set<String> types)
+      throws Exception {
+    WebhookRepresentation rep = new WebhookRepresentation();
+    rep.setEnabled(true);
+    rep.setUrl(url);
+    rep.setAuthType("bearer");
+    rep.setAudience(audience);
     if (types == null) {
       rep.setEventTypes(ImmutableSet.of("*"));
     } else {

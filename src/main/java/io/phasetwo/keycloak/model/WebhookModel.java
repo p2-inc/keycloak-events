@@ -7,6 +7,21 @@ import org.keycloak.models.UserModel;
 
 public interface WebhookModel {
 
+  /** HMAC signature of the payload sent in the {@code X-Keycloak-Signature} header (default). */
+  String AUTH_TYPE_HMAC = "hmac";
+
+  /**
+   * A short-lived JWT signed by the realm's active signing key, sent in the {@code Authorization:
+   * Bearer} header and verifiable against the realm's JWKS endpoint.
+   */
+  String AUTH_TYPE_BEARER = "bearer";
+
+  /** Default JWS algorithm used when {@link #getAuthType()} is {@link #AUTH_TYPE_BEARER}. */
+  String DEFAULT_BEARER_ALGORITHM = "RS256";
+
+  /** Default HMAC algorithm used when {@link #getAuthType()} is {@link #AUTH_TYPE_HMAC}. */
+  String DEFAULT_HMAC_ALGORITHM = "HmacSHA256";
+
   String getId();
 
   boolean isEnabled();
@@ -24,6 +39,14 @@ public interface WebhookModel {
   String getAlgorithm();
 
   void setAlgorithm(String algorithm);
+
+  String getAuthType();
+
+  void setAuthType(String authType);
+
+  String getAudience();
+
+  void setAudience(String audience);
 
   RealmModel getRealm();
 
