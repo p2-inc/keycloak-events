@@ -118,6 +118,35 @@ public class Helpers {
     return id;
   }
 
+  public static String createUnauthenticatedWebhook(
+      Keycloak keycloak,
+      CloseableHttpClient httpClient,
+      String baseUrl,
+      String url,
+      Set<String> types)
+      throws Exception {
+    WebhookRepresentation rep = new WebhookRepresentation();
+    rep.setEnabled(true);
+    rep.setUrl(url);
+    rep.setAuthType("none");
+    if (types == null) {
+      rep.setEventTypes(ImmutableSet.of("*"));
+    } else {
+      rep.setEventTypes(types);
+    }
+
+    LegacySimpleHttp.Response response =
+        LegacySimpleHttp.doPost(baseUrl, httpClient)
+            .auth(keycloak.tokenManager().getAccessTokenString())
+            .json(rep)
+            .asResponse();
+    assertThat(response.getStatus(), is(201));
+    assertNotNull(response.getFirstHeader("Location"));
+    String loc = response.getFirstHeader("Location");
+    String id = loc.substring(loc.lastIndexOf("/") + 1);
+    return id;
+  }
+
   public static void removeWebhook(
       Keycloak keycloak, CloseableHttpClient httpClient, String baseUrl, String webhookId)
       throws Exception {

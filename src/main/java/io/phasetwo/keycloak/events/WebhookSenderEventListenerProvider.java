@@ -347,7 +347,11 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
           request -> {
             if (bearer != null) request.header("Authorization", "Bearer " + bearer);
           });
+    } else if (WebhookModel.AUTH_TYPE_NONE.equalsIgnoreCase(authType)) {
+      // explicitly unauthenticated: never attach a signature, even if a secret is present
+      send(task, targetUri, Optional.empty(), Optional.empty());
     } else {
+      // hmac (or a legacy webhook with no authType): sign only when a secret is present
       Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
       Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
       send(task, targetUri, sharedSecret, hmacAlgorithm);

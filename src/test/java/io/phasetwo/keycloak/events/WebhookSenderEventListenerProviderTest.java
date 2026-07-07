@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.events;
 
 import static io.phasetwo.keycloak.Helpers.createBearerWebhook;
+import static io.phasetwo.keycloak.Helpers.createUnauthenticatedWebhook;
 import static io.phasetwo.keycloak.Helpers.createWebhook;
 import static io.phasetwo.keycloak.Helpers.removeWebhook;
 import static org.hamcrest.CoreMatchers.endsWith;
@@ -8,6 +9,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -21,7 +23,9 @@ import jakarta.ws.rs.core.Response;
 import java.security.PublicKey;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
@@ -191,7 +195,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     realm.update(realmRepresentation);
 
     AtomicReference<String> body = new AtomicReference<String>();
-    AtomicReference<String> authHeader = new AtomicReference<String>();
+    AtomicReference<Map<String, String>> headers = new AtomicReference<Map<String, String>>();
     int port = WEBHOOK_SERVER_PORT;
     String audience = "https://receiver.example.com";
     String webhookId =
@@ -203,7 +207,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
             audience,
             ImmutableSet.of("admin.*"));
 
-    Server server = newWebhookServer(port, body, authHeader);
+    Server server = newWebhookServer(port, body, headers);
     server.start();
     Thread.sleep(1000l);
 
@@ -220,7 +224,7 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       assertThat(event.getType(), equalTo("admin.USER-CREATE"));
 
       // the payload is authenticated via an Authorization: Bearer JWT, not a shared secret
-      String auth = authHeader.get();
+      String auth = headers.get().get("Authorization");
       assertThat(auth, notNullValue());
       assertThat(auth, startsWith("Bearer "));
       String jwt = auth.substring("Bearer ".length());
@@ -235,6 +239,58 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       assertThat(bodyHash, equalTo(WebhookJwtSigner.sha256Hex(payload)));
 
       List<UserRepresentation> users = realm.users().search("jwtuser");
+      assertThat(users.size(), is(1));
+      userId = users.get(0).getId();
+    } finally {
+      server.stop();
+      bestEffortDeleteUser(realm, userId);
+      bestEffortRemoveWebhook(keycloak, httpClient, webhookUrl(REALM), webhookId);
+    }
+  }
+
+  @Test
+  public void testWebhookNoneAuth() throws Exception {
+    // Configure
+    RealmResource realm = keycloak.realm(REALM);
+    RealmRepresentation realmRepresentation = realm.toRepresentation();
+    realmRepresentation.setEventsEnabled(true);
+    realmRepresentation.setAdminEventsEnabled(true);
+    realmRepresentation.setAdminEventsDetailsEnabled(true);
+    realmRepresentation.setEventsListeners(Arrays.asList("ext-event-webhook"));
+    realm.update(realmRepresentation);
+
+    AtomicReference<String> body = new AtomicReference<String>();
+    AtomicReference<Map<String, String>> headers = new AtomicReference<Map<String, String>>();
+    int port = WEBHOOK_SERVER_PORT;
+    String webhookId =
+        createUnauthenticatedWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            ImmutableSet.of("admin.*"));
+
+    Server server = newWebhookServer(port, body, headers);
+    server.start();
+    Thread.sleep(1000l);
+
+    String userId = null;
+    try {
+      // cause an event to be sent
+      UserRepresentation userRepresentation = new UserRepresentation();
+      userRepresentation.setUsername("noneuser");
+      Response userResponse = realm.users().create(userRepresentation);
+      assertThat(userResponse.getStatus(), is(201));
+
+      String payload = awaitBody(body, "admin.USER-CREATE on master (none)");
+      ExtendedAdminEvent event = parseEvent(payload);
+      assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+      // an unauthenticated webhook sends neither a signature nor a bearer token
+      assertThat(headers.get().get("Authorization"), nullValue());
+      assertThat(headers.get().get("X-Keycloak-Signature"), nullValue());
+
+      List<UserRepresentation> users = realm.users().search("noneuser");
       assertThat(users.size(), is(1));
       userId = users.get(0).getId();
     } finally {
@@ -523,8 +579,13 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
     return newWebhookServer(port, body, null);
   }
 
+  /**
+   * Webhook server that, in addition to capturing the body, records the authentication-related
+   * request headers ({@code Authorization} and {@code X-Keycloak-Signature}) into {@code headers}
+   * when provided. Missing headers are stored as {@code null}.
+   */
   private static Server newWebhookServer(
-      int port, AtomicReference<String> body, AtomicReference<String> authHeader) {
+      int port, AtomicReference<String> body, AtomicReference<Map<String, String>> headers) {
     Server server = new Server(port);
     server
         .router()
@@ -533,8 +594,11 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
             (request, response) -> {
               String r = request.body();
               log.infof("%s", r);
-              if (authHeader != null) {
-                authHeader.set(request.header("Authorization"));
+              if (headers != null) {
+                Map<String, String> captured = new HashMap<>();
+                captured.put("Authorization", request.header("Authorization"));
+                captured.put("X-Keycloak-Signature", request.header("X-Keycloak-Signature"));
+                headers.set(captured);
               }
               body.set(r);
               response.body("OK");

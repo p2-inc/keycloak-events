@@ -7,7 +7,10 @@ import org.keycloak.models.UserModel;
 
 public interface WebhookModel {
 
-  /** HMAC signature of the payload sent in the {@code X-Keycloak-Signature} header (default). */
+  /** No authentication: the payload is sent without a signature or bearer token. */
+  String AUTH_TYPE_NONE = "none";
+
+  /** HMAC signature of the payload sent in the {@code X-Keycloak-Signature} header. */
   String AUTH_TYPE_HMAC = "hmac";
 
   /**

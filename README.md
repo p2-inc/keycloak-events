@@ -288,14 +288,19 @@ For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ign
 
 #### Authenticating the webhook payload
 
-Each webhook may authenticate its payload one of two ways, selected by the `authType` field:
+Each webhook authenticates its payload one of three ways, selected by the `authType` field:
 
 | `authType` | Header | How the receiver verifies |
 | --- | --- | --- |
-| `hmac` (default) | `X-Keycloak-Signature` | Recompute the keyed-HMAC of the raw request body using the shared `secret` and compare. |
+| `none` | — | The payload is sent unauthenticated. |
+| `hmac` | `X-Keycloak-Signature` | Recompute the keyed-HMAC of the raw request body using the shared `secret` and compare. |
 | `bearer` | `Authorization: Bearer <jwt>` | Verify a short-lived JWT signed by the realm's active signing key against the realm's JWKS. No shared secret is required. |
 
-**HMAC (shared secret).** Set `secret` (and optionally `algorithm`, defaulting to `HmacSHA256`, or `HmacSHA1` for backwards compatibility). The RFC2104 signature of the request body is sent in the `X-Keycloak-Signature` header. This is the default and is unchanged from previous versions — webhooks created without an `authType` continue to behave exactly as before.
+When `authType` is omitted, the historical behavior is preserved: a webhook with a `secret` defaults to `hmac`, and one without a secret defaults to `none`. Existing webhooks are therefore unchanged.
+
+**None.** Set `authType` to `none` (or simply omit both `authType` and `secret`) to send the payload without any signature or token.
+
+**HMAC (shared secret).** Set `authType` to `hmac` and provide a `secret` (and optionally `algorithm`, defaulting to `HmacSHA256`, or `HmacSHA1` for backwards compatibility). The RFC2104 signature of the request body is sent in the `X-Keycloak-Signature` header.
 
 **Bearer JWT (asymmetric, no shared secret).** Set `authType` to `bearer` and provide an `audience`. On each send a fresh JWT is minted, signed with the realm's active signing key (`algorithm` defaults to `RS256`), and sent in the `Authorization: Bearer` header. The receiver validates it against the realm's published keys — the same keys used for access tokens — so no secret needs to be exchanged or stored:
 

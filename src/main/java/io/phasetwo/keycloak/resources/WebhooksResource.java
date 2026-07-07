@@ -307,18 +307,23 @@ public class WebhooksResource extends AbstractAdminResource {
     if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
       w.setSecret(rep.getSecret());
     }
-    String authType =
-        (rep.getAuthType() != null && !"".equals(rep.getAuthType()))
-            ? rep.getAuthType().toLowerCase()
-            : WebhookModel.AUTH_TYPE_HMAC;
+    // Authentication is one of: none, hmac, or bearer (JWT). When not specified, preserve the
+    // historical behavior: a secret implies HMAC signing, otherwise the webhook is unauthenticated.
+    String authType;
+    if (rep.getAuthType() != null && !"".equals(rep.getAuthType())) {
+      authType = rep.getAuthType().toLowerCase();
+    } else if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
+      authType = WebhookModel.AUTH_TYPE_HMAC;
+    } else {
+      authType = WebhookModel.AUTH_TYPE_NONE;
+    }
     w.setAuthType(authType);
     if (rep.getAlgorithm() != null && !"".equals(rep.getAlgorithm())) {
       w.setAlgorithm(rep.getAlgorithm());
-    } else {
-      w.setAlgorithm(
-          WebhookModel.AUTH_TYPE_BEARER.equals(authType)
-              ? WebhookModel.DEFAULT_BEARER_ALGORITHM
-              : WebhookModel.DEFAULT_HMAC_ALGORITHM);
+    } else if (WebhookModel.AUTH_TYPE_BEARER.equals(authType)) {
+      w.setAlgorithm(WebhookModel.DEFAULT_BEARER_ALGORITHM);
+    } else if (WebhookModel.AUTH_TYPE_HMAC.equals(authType)) {
+      w.setAlgorithm(WebhookModel.DEFAULT_HMAC_ALGORITHM);
     }
     if (rep.getAudience() != null && !"".equals(rep.getAudience())) {
       w.setAudience(rep.getAudience());
