@@ -1,6 +1,20 @@
 package io.phasetwo.keycloak.model.jpa.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Access;
+import jakarta.persistence.AccessType;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -38,6 +52,12 @@ public class WebhookEntity {
 
   @Column(name = "ALGORITHM")
   protected String algorithm;
+
+  @Column(name = "AUTH_TYPE")
+  protected String authType;
+
+  @Column(name = "AUDIENCE")
+  protected String audience;
 
   @ElementCollection(fetch = FetchType.EAGER)
   @Column(name = "VALUE")
@@ -104,6 +124,22 @@ public class WebhookEntity {
 
   public void setAlgorithm(String algorithm) {
     this.algorithm = algorithm;
+  }
+
+  public String getAuthType() {
+    return authType;
+  }
+
+  public void setAuthType(String authType) {
+    this.authType = authType;
+  }
+
+  public String getAudience() {
+    return audience;
+  }
+
+  public void setAudience(String audience) {
+    this.audience = audience;
   }
 
   public Set<String> getEventTypes() {

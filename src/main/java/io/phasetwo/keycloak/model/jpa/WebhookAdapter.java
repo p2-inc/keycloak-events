@@ -76,6 +76,26 @@ public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
   }
 
   @Override
+  public String getAuthType() {
+    return webhook.getAuthType();
+  }
+
+  @Override
+  public void setAuthType(String authType) {
+    webhook.setAuthType(authType);
+  }
+
+  @Override
+  public String getAudience() {
+    return webhook.getAudience();
+  }
+
+  @Override
+  public void setAudience(String audience) {
+    webhook.setAudience(audience);
+  }
+
+  @Override
   public RealmModel getRealm() {
     return session.realms().getRealm(webhook.getRealmId());
   }

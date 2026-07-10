@@ -1,9 +1,17 @@
 package io.phasetwo.keycloak.events;
 
+import static io.phasetwo.keycloak.Helpers.createBearerWebhook;
+import static io.phasetwo.keycloak.Helpers.createUnauthenticatedWebhook;
 import static io.phasetwo.keycloak.Helpers.createWebhook;
 import static io.phasetwo.keycloak.Helpers.removeWebhook;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.CoreMatchers.endsWith;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,9 +20,12 @@ import com.google.common.collect.ImmutableSet;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.resources.AbstractResourceTest;
 import jakarta.ws.rs.core.Response;
+import java.security.PublicKey;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
@@ -22,13 +33,21 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.junit.jupiter.api.Test;
 import org.keycloak.OAuth2Constants;
+import org.keycloak.TokenVerifier;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.broker.provider.util.LegacySimpleHttp;
+import org.keycloak.jose.jwk.JSONWebKeySet;
+import org.keycloak.jose.jwk.JWK;
+import org.keycloak.jose.jwk.JWKParser;
+import org.keycloak.jose.jws.JWSInput;
+import org.keycloak.representations.JsonWebToken;
 import org.keycloak.representations.idm.ClientRepresentation;
 import org.keycloak.representations.idm.RealmRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.keycloak.util.JsonSerialization;
 
 @JBossLog
 public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest {
@@ -162,6 +181,143 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
       bestEffortDeleteUser(realm, userId);
       bestEffortRemoveWebhook(keycloak, httpClient, webhookUrl(REALM), webhookId);
     }
+  }
+
+  @Test
+  public void testWebhookBearerJwtAuth() throws Exception {
+    // Configure
+    RealmResource realm = keycloak.realm(REALM);
+    RealmRepresentation realmRepresentation = realm.toRepresentation();
+    realmRepresentation.setEventsEnabled(true);
+    realmRepresentation.setAdminEventsEnabled(true);
+    realmRepresentation.setAdminEventsDetailsEnabled(true);
+    realmRepresentation.setEventsListeners(Arrays.asList("ext-event-webhook"));
+    realm.update(realmRepresentation);
+
+    AtomicReference<String> body = new AtomicReference<String>();
+    AtomicReference<Map<String, String>> headers = new AtomicReference<Map<String, String>>();
+    int port = WEBHOOK_SERVER_PORT;
+    String audience = "https://receiver.example.com";
+    String webhookId =
+        createBearerWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            audience,
+            ImmutableSet.of("admin.*"));
+
+    Server server = newWebhookServer(port, body, headers);
+    server.start();
+    Thread.sleep(1000l);
+
+    String userId = null;
+    try {
+      // cause an event to be sent
+      UserRepresentation userRepresentation = new UserRepresentation();
+      userRepresentation.setUsername("jwtuser");
+      Response userResponse = realm.users().create(userRepresentation);
+      assertThat(userResponse.getStatus(), is(201));
+
+      String payload = awaitBody(body, "admin.USER-CREATE on master (bearer)");
+      ExtendedAdminEvent event = parseEvent(payload);
+      assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+      // the payload is authenticated via an Authorization: Bearer JWT, not a shared secret
+      String auth = headers.get().get("Authorization");
+      assertThat(auth, notNullValue());
+      assertThat(auth, startsWith("Bearer "));
+      String jwt = auth.substring("Bearer ".length());
+
+      // verify the JWT signature against the realm JWKS and validate its claims
+      JsonWebToken token = verifyJwtAgainstRealmJwks(jwt, REALM);
+      assertThat(token.getIssuer(), endsWith("/realms/" + REALM));
+      assertThat(Arrays.asList(token.getAudience()), hasItem(audience));
+      assertThat(token.getExp() > System.currentTimeMillis() / 1000L, is(true));
+      // the request_body_sha256 claim binds the token to this exact payload
+      String bodyHash = (String) token.getOtherClaims().get("request_body_sha256");
+      assertThat(bodyHash, equalTo(WebhookJwtSigner.sha256Hex(payload)));
+
+      List<UserRepresentation> users = realm.users().search("jwtuser");
+      assertThat(users.size(), is(1));
+      userId = users.get(0).getId();
+    } finally {
+      server.stop();
+      bestEffortDeleteUser(realm, userId);
+      bestEffortRemoveWebhook(keycloak, httpClient, webhookUrl(REALM), webhookId);
+    }
+  }
+
+  @Test
+  public void testWebhookNoneAuth() throws Exception {
+    // Configure
+    RealmResource realm = keycloak.realm(REALM);
+    RealmRepresentation realmRepresentation = realm.toRepresentation();
+    realmRepresentation.setEventsEnabled(true);
+    realmRepresentation.setAdminEventsEnabled(true);
+    realmRepresentation.setAdminEventsDetailsEnabled(true);
+    realmRepresentation.setEventsListeners(Arrays.asList("ext-event-webhook"));
+    realm.update(realmRepresentation);
+
+    AtomicReference<String> body = new AtomicReference<String>();
+    AtomicReference<Map<String, String>> headers = new AtomicReference<Map<String, String>>();
+    int port = WEBHOOK_SERVER_PORT;
+    String webhookId =
+        createUnauthenticatedWebhook(
+            keycloak,
+            httpClient,
+            webhookUrl(REALM),
+            "http://host.testcontainers.internal:" + port + "/webhook",
+            ImmutableSet.of("admin.*"));
+
+    Server server = newWebhookServer(port, body, headers);
+    server.start();
+    Thread.sleep(1000l);
+
+    String userId = null;
+    try {
+      // cause an event to be sent
+      UserRepresentation userRepresentation = new UserRepresentation();
+      userRepresentation.setUsername("noneuser");
+      Response userResponse = realm.users().create(userRepresentation);
+      assertThat(userResponse.getStatus(), is(201));
+
+      String payload = awaitBody(body, "admin.USER-CREATE on master (none)");
+      ExtendedAdminEvent event = parseEvent(payload);
+      assertThat(event.getType(), equalTo("admin.USER-CREATE"));
+
+      // an unauthenticated webhook sends neither a signature nor a bearer token
+      assertThat(headers.get().get("Authorization"), nullValue());
+      assertThat(headers.get().get("X-Keycloak-Signature"), nullValue());
+
+      List<UserRepresentation> users = realm.users().search("noneuser");
+      assertThat(users.size(), is(1));
+      userId = users.get(0).getId();
+    } finally {
+      server.stop();
+      bestEffortDeleteUser(realm, userId);
+      bestEffortRemoveWebhook(keycloak, httpClient, webhookUrl(REALM), webhookId);
+    }
+  }
+
+  /** Verify a compact JWS against the realm's published JWKS and return the parsed token. */
+  private JsonWebToken verifyJwtAgainstRealmJwks(String jwt, String realmName) throws Exception {
+    String certsUrl = getAuthUrl() + "/realms/" + realmName + "/protocol/openid-connect/certs";
+    String certs = LegacySimpleHttp.doGet(certsUrl, httpClient).asString();
+    JSONWebKeySet jwks = JsonSerialization.readValue(certs, JSONWebKeySet.class);
+    String kid = new JWSInput(jwt).getHeader().getKeyId();
+    PublicKey publicKey = null;
+    for (JWK jwk : jwks.getKeys()) {
+      if (kid.equals(jwk.getKeyId())) {
+        publicKey = JWKParser.create(jwk).toPublicKey();
+        break;
+      }
+    }
+    assertThat("no JWKS key matching kid " + kid, publicKey, notNullValue());
+    TokenVerifier<JsonWebToken> verifier =
+        TokenVerifier.create(jwt, JsonWebToken.class).publicKey(publicKey);
+    verifier.verify(); // throws on bad signature
+    return verifier.getToken();
   }
 
   @Test
@@ -420,6 +576,16 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
   }
 
   private static Server newWebhookServer(int port, AtomicReference<String> body) {
+    return newWebhookServer(port, body, null);
+  }
+
+  /**
+   * Webhook server that, in addition to capturing the body, records the authentication-related
+   * request headers ({@code Authorization} and {@code X-Keycloak-Signature}) into {@code headers}
+   * when provided. Missing headers are stored as {@code null}.
+   */
+  private static Server newWebhookServer(
+      int port, AtomicReference<String> body, AtomicReference<Map<String, String>> headers) {
     Server server = new Server(port);
     server
         .router()
@@ -428,6 +594,12 @@ public class WebhookSenderEventListenerProviderTest extends AbstractResourceTest
             (request, response) -> {
               String r = request.body();
               log.infof("%s", r);
+              if (headers != null) {
+                Map<String, String> captured = new HashMap<>();
+                captured.put("Authorization", request.header("Authorization"));
+                captured.put("X-Keycloak-Signature", request.header("X-Keycloak-Signature"));
+                headers.set(captured);
+              }
               body.set(r);
               response.body("OK");
               response.status(202);

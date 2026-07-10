@@ -11,6 +11,8 @@ public class WebhookRepresentation {
   private String url;
   private String secret;
   private String algorithm;
+  private String authType;
+  private String audience;
   private String createdBy;
   private Date createdAt;
   private String realm;

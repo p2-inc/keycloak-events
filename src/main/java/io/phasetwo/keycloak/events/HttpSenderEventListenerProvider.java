@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.security.SignatureException;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
@@ -70,15 +71,31 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected void send(
       SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
       throws SenderException, IOException {
+    send(
+        task,
+        targetUri,
+        request ->
+            sharedSecret.ifPresent(
+                secret ->
+                    request.header(
+                        "X-Keycloak-Signature",
+                        hmacFor(
+                            task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM)))));
+  }
+
+  /**
+   * Send the payload, applying an arbitrary authentication decorator (e.g. an HMAC signature header
+   * or an {@code Authorization: Bearer} JWT) to the request before it is sent.
+   */
+  protected void send(SenderTask task, String targetUri, Consumer<LegacySimpleHttp> authDecorator)
+      throws SenderException, IOException {
     task.incrementAndGetAttempt();
     log.debugf("attempting send to %s", targetUri);
     try (CloseableHttpClient http = HttpClients.createDefault()) {
       LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
-      sharedSecret.ifPresent(
-          secret ->
-              request.header(
-                  "X-Keycloak-Signature",
-                  hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+      if (authDecorator != null) {
+        authDecorator.accept(request);
+      }
       LegacySimpleHttp.Response response = request.asResponse();
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
