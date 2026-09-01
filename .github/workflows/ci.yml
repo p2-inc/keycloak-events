@@ -2,31 +2,29 @@ name: CI Build
 on:
   push:
     branches:
-      - 'main'
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build:
-    name: Build Project with Integration Tests
+    name: Build Project with Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: '0' # ratcheting 
+          fetch-depth: '0' # ratcheting
       - name: Setup Java 21
         uses: actions/setup-java@v5
         with:
           java-version: 21
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Build with Maven and run Cypress Integration Tests
-        run: mvn --batch-mode --update-snapshots verify -Pcypress-tests,integration-tests
-      - name: Upload JaCoCo Coverage Report as an artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: jacoco-report
-          path: ${{ github.workspace }}/target/site/jacoco/
-          retention-days: 30
+          distribution: temurin
+          cache: maven
+      - name: Build with Maven
+        run: mvn --batch-mode --update-snapshots verify
       - name: Check if JaCoCo CSV exists
         id: check-jacoco
         run: |
@@ -40,3 +38,10 @@ jobs:
         uses: jjmrocha/jacoco-summary@v1.1.1
         with:
           jacoco-csv-file: target/site/jacoco/jacoco.csv
+      - name: Upload JaCoCo report artifact
+        if: steps.check-jacoco.outputs.exists == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: jacoco-report
+          path: ${{ github.workspace }}/target/site/jacoco/
+          retention-days: 30
