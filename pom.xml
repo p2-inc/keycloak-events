@@ -323,10 +323,24 @@
       <version>4.5.13</version>
       <scope>test</scope>
     </dependency>
-    <dependency> <!-- so we can test webhooks for org methods -->
+    <!--
+      So we can test webhooks for org methods. The container loads this jar as a
+      provider, so a release whose Liquibase migration fails takes the whole
+      integration suite down at beforeAll, not just the org assertions.
+
+      0.186 is excluded for exactly that reason: its
+      jpa-changelog-phasetwo-20260929.xml creates an index named
+      IDX_ORG_DOMAIN_ORG_ID, which collides with the index Keycloak's own
+      jpa-changelog-26.0.0.xml creates on its native ORG_DOMAIN table. Index
+      names are unique per schema rather than per table on H2 (and PostgreSQL,
+      and Oracle), so migration aborts and the server never starts. See
+      p2-inc/keycloak-orgs#509. The fix ships in 0.187, which the second
+      interval picks up automatically.
+    -->
+    <dependency>
       <groupId>io.phasetwo.keycloak</groupId>
       <artifactId>keycloak-orgs</artifactId>
-      <version>[0.107,)</version>
+      <version>[0.107,0.186),[0.187,)</version>
       <scope>test</scope>
     </dependency>
     <dependency>
