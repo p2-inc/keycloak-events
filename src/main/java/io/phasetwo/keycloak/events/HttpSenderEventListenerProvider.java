@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.security.SignatureException;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
@@ -86,15 +87,37 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       Optional<String> algorithm,
       KeycloakSession session)
       throws SenderException {
+    send(
+        task,
+        targetUri,
+        request ->
+            sharedSecret.ifPresent(
+                secret ->
+                    request.header(
+                        "X-Keycloak-Signature",
+                        hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM)))),
+        session);
+  }
+
+  /**
+   * Send the payload, applying an arbitrary authentication decorator (e.g. an HMAC signature header
+   * or an {@code Authorization: Bearer} JWT) to the request before it is sent. The request is made
+   * with the HTTP client provided by Keycloak, so that the server's outgoing HTTP configuration
+   * (e.g. proxy mappings) is honored.
+   */
+  protected void send(
+      SenderTask task,
+      String targetUri,
+      Consumer<LegacySimpleHttp> authDecorator,
+      KeycloakSession session)
+      throws SenderException {
     task.incrementAndGetAttempt();
     log.debugf("attempting send to %s", targetUri);
     var httpClient = session.getProvider(HttpClientProvider.class).getHttpClient();
     LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, httpClient).json(task.getEvent());
-    sharedSecret.ifPresent(
-        secret ->
-            request.header(
-                "X-Keycloak-Signature",
-                hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM))));
+    if (authDecorator != null) {
+      authDecorator.accept(request);
+    }
     try (LegacySimpleHttp.Response response = request.asResponse()) {
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);

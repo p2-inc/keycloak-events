@@ -1,6 +1,23 @@
-> :rocket: **Try it for free** in the new Phase Two [keycloak managed service](https://phasetwo.io/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events). See the [announcement and demo video](https://phasetwo.io/blog/self-service/) for more information.
-
 # keycloak-events
+
+<!-- phasetwo:banner:start - managed by p2-inc/shared-github-actions, edit there -->
+[![build](https://img.shields.io/github/actions/workflow/status/p2-inc/keycloak-events/ci.yml?branch=main&label=build)](https://github.com/p2-inc/keycloak-events/actions/workflows/ci.yml) [![Maven Central](https://img.shields.io/maven-central/v/io.phasetwo.keycloak/keycloak-events?label=maven%20central)](https://central.sonatype.com/artifact/io.phasetwo.keycloak/keycloak-events) [![license](https://img.shields.io/badge/license-ELv2-blue)](COPYING) [![docs](https://img.shields.io/badge/docs-phasetwo.io-blue)](https://phasetwo.io/docs/audit-logs/)
+
+📚 [Documentation](https://phasetwo.io/docs/audit-logs/) • 🚀 [Hosted Keycloak](https://dash.phasetwo.io/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events) • 🤖 [Keycloak Skills](https://github.com/p2-inc/keycloak-skills) • 💬 [Support](mailto:support@phasetwo.io)
+
+> [!TIP]
+> **Run this in our cloud, no setup needed.** Phase Two hosts Keycloak with this extension and the rest of ours built in. [Try it free with your own cluster →](https://dash.phasetwo.io/?utm_source=github&utm_medium=readme&utm_campaign=keycloak-events)
+>
+> **Using a coding agent?** Add the Phase Two Keycloak skills ([launch post](https://phasetwo.io/blog/keycloak-skills-mcp-launch)) to Claude Code, Cursor or Codex so your agent can set up passwordless login, SSO, organizations and clusters for you:
+>
+> ```sh
+> # Install the skills (connects to our hosted MCP server)
+> claude plugin marketplace add p2-inc/keycloak-skills
+> claude plugin install phasetwo@keycloak-skills
+> # Or connect to the MCP server directly
+> claude mcp add --transport http keycloak https://mcp.phasetwo.io/mcp
+> ```
+<!-- phasetwo:banner:end -->
 
 Useful Keycloak `EventListenerProvider` implementations and utilities.
 
@@ -210,7 +227,17 @@ This is a write-only sink. The query methods (`createQuery`, `createAdminQuery`)
 
 #### Enabling
 
-Keycloak chooses exactly one `EventStoreProvider`, selected via the `events-store` SPI. To activate this provider, set the SPI's active provider id to `ext-event-mdc-logger-store` (see [Keycloak configuration providers](https://www.keycloak.org/server/configuration-provider)).
+Keycloak chooses exactly one `EventStoreProvider`, selected via the `events-store` SPI. Activating this provider takes two steps.
+
+**1. Make the provider available.** The factory implements `EnvironmentDependentProviderFactory`, so it only registers when explicitly switched on via either the `EXT_EVENT_MDC_LOGGER_ENABLED` environment variable or the `ext.event.mdc-logger.enabled` system property:
+
+```
+EXT_EVENT_MDC_LOGGER_ENABLED=true
+```
+
+This flag is read at Keycloak's **build (augmentation) time**, so it must be present when `kc.sh build` runs (and for the auto-build performed by a non-optimized `kc.sh start`). If it is not set, the provider is filtered out and selecting it in step 2 fails the build with `Failed to find provider ext-event-mdc-logger-store for eventsStore`.
+
+**2. Select it as the active `events-store` provider** (see [Keycloak configuration providers](https://www.keycloak.org/server/configuration-provider)).
 
 Via CLI flag passed to `kc.sh start` / `kc.sh start-dev`:
 
@@ -265,6 +292,9 @@ The webhook object has this format:
   "enabled": "true",
   "url": "https://example.com/some/webhook",
   "secret": "ofj09saP4",
+  "authType": "hmac",
+  "algorithm": "HmacSHA256",
+  "audience": null,
   "eventTypes": ["*"],
   "createdBy": "ff730b72-a421-4f6e-9e4e-7fc7f53bac88",
   "createdAt": "2021-04-21T18:25:43-05:00"
@@ -272,6 +302,44 @@ The webhook object has this format:
 ```
 
 For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+
+#### Authenticating the webhook payload
+
+Each webhook authenticates its payload one of three ways, selected by the `authType` field:
+
+| `authType` | Header | How the receiver verifies |
+| --- | --- | --- |
+| `none` | — | The payload is sent unauthenticated. |
+| `hmac` | `X-Keycloak-Signature` | Recompute the keyed-HMAC of the raw request body using the shared `secret` and compare. |
+| `bearer` | `Authorization: Bearer <jwt>` | Verify a short-lived JWT signed by the realm's active signing key against the realm's JWKS. No shared secret is required. |
+
+When `authType` is omitted, the historical behavior is preserved: a webhook with a `secret` defaults to `hmac`, and one without a secret defaults to `none`. Existing webhooks are therefore unchanged.
+
+**None.** Set `authType` to `none` (or simply omit both `authType` and `secret`) to send the payload without any signature or token.
+
+**HMAC (shared secret).** Set `authType` to `hmac` and provide a `secret` (and optionally `algorithm`, defaulting to `HmacSHA256`, or `HmacSHA1` for backwards compatibility). The RFC2104 signature of the request body is sent in the `X-Keycloak-Signature` header.
+
+**Bearer JWT (asymmetric, no shared secret).** Set `authType` to `bearer` and provide an `audience`. On each send a fresh JWT is minted, signed with the realm's active signing key (`algorithm` defaults to `RS256`), and sent in the `Authorization: Bearer` header. The receiver validates it against the realm's published keys — the same keys used for access tokens — so no secret needs to be exchanged or stored:
+
+```json
+{
+  "jwks_uri": "https://keycloak.example.com/realms/my-realm/protocol/openid-connect/certs",
+  "issuer": "https://keycloak.example.com/realms/my-realm",
+  "audience": "https://receiver.example.com"
+}
+```
+
+The token carries these claims:
+
+| Claim | Value |
+| --- | --- |
+| `iss` | The realm issuer, e.g. `https://keycloak.example.com/realms/my-realm` |
+| `aud` | The configured `audience` |
+| `iat` / `exp` | Issued-at and expiry. Lifespan defaults to 300s; override with the `WEBHOOK_JWT_LIFESPAN_SECONDS` env var. A fresh token is minted for every send attempt, including retries. |
+| `jti` | A unique token id |
+| `request_body_sha256` | Hex-encoded SHA-256 of the exact request body, binding the token to the payload so it cannot be replayed against a different body. |
+
+The token issuer is resolved, in order, from: the realm's configured frontend URL, the `KC_HOSTNAME` environment variable, and finally the base URI of the request that produced the event. For the issuer to match the realm's real token issuer in production (where webhooks are dispatched on a background thread with no request context), configure the realm frontend URL or `KC_HOSTNAME`.
 
 #### SPI configuration
 
@@ -363,6 +431,8 @@ It is possible to disable the scripts run by the `ScriptEventListenerProvider` b
 
 #### Webhooks
 There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
+
+The catch-all webhook can also authenticate with a bearer JWT instead of an HMAC shared secret (see [Authenticating the webhook payload](#authenticating-the-webhook-payload)). Set `WEBHOOK_AUTH_TYPE=bearer` and `WEBHOOK_AUDIENCE=<audience>`; `WEBHOOK_ALGORITHM` selects the JWS algorithm (defaults to `RS256`).
 
 ---
 

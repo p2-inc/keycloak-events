@@ -7,12 +7,25 @@ import org.keycloak.events.EventStoreProvider;
 import org.keycloak.events.EventStoreProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.provider.EnvironmentDependentProviderFactory;
 
 @JBossLog
 @AutoService(EventStoreProviderFactory.class)
-public class MdcLoggerEventStoreProviderFactory implements EventStoreProviderFactory {
+public class MdcLoggerEventStoreProviderFactory
+    implements EventStoreProviderFactory, EnvironmentDependentProviderFactory {
 
   public static final String PROVIDER_ID = "ext-event-mdc-logger-store";
+
+  public static final String ENV_ENABLED = "EXT_EVENT_MDC_LOGGER_ENABLED";
+  public static final String PROP_ENABLED = "ext.event.mdc-logger.enabled";
+
+  private static final boolean enabled;
+
+  static {
+    enabled =
+        Boolean.parseBoolean(System.getenv(ENV_ENABLED))
+            || Boolean.parseBoolean(System.getProperty(PROP_ENABLED));
+  }
 
   private boolean useJpa = false;
 
@@ -37,4 +50,10 @@ public class MdcLoggerEventStoreProviderFactory implements EventStoreProviderFac
 
   @Override
   public void close() {}
+
+  @Override
+  public boolean isSupported(Config.Scope scope) {
+    log.infof("enabled %b", enabled);
+    return enabled;
+  }
 }

@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -38,6 +39,8 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private static final String WEBHOOK_URI_ENV = "WEBHOOK_URI";
   private static final String WEBHOOK_SECRET_ENV = "WEBHOOK_SECRET";
   private static final String WEBHOOK_ALGORITHM_ENV = "WEBHOOK_ALGORITHM";
+  private static final String WEBHOOK_AUTH_TYPE_ENV = "WEBHOOK_AUTH_TYPE";
+  private static final String WEBHOOK_AUDIENCE_ENV = "WEBHOOK_AUDIENCE";
 
   public static final String WEBHOOK_SEND_LOGGER_NAME = "io.phasetwo.keycloak.WEBHOOK_SEND_LOGGER";
   public static final String MDC_KEY_PREFIX = "webhook.";
@@ -54,6 +57,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final String systemUri;
   private final String systemSecret;
   private final String systemAlgorithm;
+  private final String systemAuthType;
+  private final String systemAudience;
+
+  // request base URI captured at construction (request thread has context); used as a fallback for
+  // deriving the JWT issuer when signing later on a background thread with no request context.
+  private final String contextBaseUri;
 
   public WebhookSenderEventListenerProvider(
       KeycloakSession session, ScheduledExecutorService exec, WebhookSenderConfig config) {
@@ -65,8 +74,20 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     this.systemUri = System.getenv(WEBHOOK_URI_ENV);
     this.systemSecret = System.getenv(WEBHOOK_SECRET_ENV);
     this.systemAlgorithm = System.getenv(WEBHOOK_ALGORITHM_ENV);
+    this.systemAuthType = System.getenv(WEBHOOK_AUTH_TYPE_ENV);
+    this.systemAudience = System.getenv(WEBHOOK_AUDIENCE_ENV);
+    this.contextBaseUri = captureBaseUri(session);
     this.config = config;
     this.webhooks = session.getProvider(WebhookProvider.class);
+  }
+
+  private static String captureBaseUri(KeycloakSession session) {
+    try {
+      return session.getContext().getUri().getBaseUri().toString();
+    } catch (Exception e) {
+      log.tracef("couldn't capture request base URI: %s", e.getMessage());
+      return null;
+    }
   }
 
   @Override
@@ -171,7 +192,14 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
           if (!Strings.isNullOrEmpty(systemUri)) {
             ExtendedAdminEvent customEvent = clone(event);
             customEvent.setUid(KeycloakModelUtils.generateId());
-            schedule(null, customEvent, systemUri, systemSecret, systemAlgorithm);
+            schedule(
+                null,
+                customEvent,
+                systemUri,
+                systemSecret,
+                systemAlgorithm,
+                systemAuthType,
+                systemAudience);
           }
         });
   }
@@ -266,7 +294,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
         customEvent,
         webhook.getUrl(),
         webhook.getSecret(),
-        webhook.getAlgorithm());
+        webhook.getAlgorithm(),
+        webhook.getAuthType(),
+        webhook.getAudience());
   }
 
   private void schedule(
@@ -274,12 +304,19 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       ExtendedAdminEvent customEvent,
       String url,
       String secret,
-      String algorithm) {
+      String algorithm,
+      String authType,
+      String audience) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
     task.getProperties().put("webhookId", webhookId);
     task.getProperties().put("url", url);
-    task.getProperties().put("secret", secret);
-    task.getProperties().put("algorithm", algorithm);
+    if (secret != null) task.getProperties().put("secret", secret);
+    if (algorithm != null) task.getProperties().put("algorithm", algorithm);
+    if (authType != null) task.getProperties().put("authType", authType);
+    if (audience != null) task.getProperties().put("audience", audience);
+    if (customEvent.getRealmId() != null) {
+      task.getProperties().put("realmId", customEvent.getRealmId());
+    }
     schedule(task, 0l, TimeUnit.MILLISECONDS);
   }
 
@@ -304,8 +341,41 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   @Override
   void send(SenderTask task) {
     String targetUri = task.getProperties().get("url");
-    Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
-    Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
+    String authType = task.getProperties().get("authType");
+    if (WebhookModel.AUTH_TYPE_BEARER.equalsIgnoreCase(authType)) {
+      // minted in its own transaction, before the one used for sending is opened
+      String bearer = generateBearerToken(task);
+      runJobInTransaction(
+          factory,
+          session -> {
+            try {
+              send(
+                  task,
+                  targetUri,
+                  request -> {
+                    if (bearer != null) request.header("Authorization", "Bearer " + bearer);
+                  },
+                  session);
+            } catch (SenderException e) {
+              throw sneakyThrow(e);
+            }
+          });
+    } else if (WebhookModel.AUTH_TYPE_NONE.equalsIgnoreCase(authType)) {
+      // explicitly unauthenticated: never attach a signature, even if a secret is present
+      sendSigned(task, targetUri, Optional.empty(), Optional.empty());
+    } else {
+      // hmac (or a legacy webhook with no authType): sign only when a secret is present
+      Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
+      Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
+      sendSigned(task, targetUri, sharedSecret, hmacAlgorithm);
+    }
+  }
+
+  private void sendSigned(
+      SenderTask task,
+      String targetUri,
+      Optional<String> sharedSecret,
+      Optional<String> hmacAlgorithm) {
     runJobInTransaction(
         factory,
         session -> {
@@ -315,6 +385,39 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
             throw sneakyThrow(e);
           }
         });
+  }
+
+  /**
+   * Mint a fresh realm-signed JWT for this send attempt. Runs in its own transaction because {@code
+   * send} executes on a background scheduler thread with no live request session, and signing needs
+   * the realm's active signing key.
+   */
+  private String generateBearerToken(SenderTask task) {
+    String realmId = task.getProperties().get("realmId");
+    if (Strings.isNullOrEmpty(realmId)) {
+      log.warn("Cannot generate webhook bearer token: missing realmId");
+      return null;
+    }
+    String algorithm = task.getProperties().get("algorithm");
+    String audience = task.getProperties().get("audience");
+    final AtomicReference<String> token = new AtomicReference<>();
+    try {
+      final String body = JsonSerialization.writeValueAsString(task.getEvent());
+      runJobInTransaction(
+          factory,
+          (session) -> {
+            RealmModel realm = session.realms().getRealm(realmId);
+            if (realm == null) {
+              log.warnf("Cannot generate webhook bearer token: realm %s not found", realmId);
+              return;
+            }
+            token.set(
+                WebhookJwtSigner.sign(session, realm, algorithm, audience, body, contextBaseUri));
+          });
+    } catch (Exception e) {
+      log.warn("Error generating webhook bearer token", e);
+    }
+    return token.get();
   }
 
   private ExtendedAdminEvent completeAdminEventAttributes(String uid, Event event) {
