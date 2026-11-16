@@ -1,5 +1,8 @@
 package io.phasetwo.keycloak.events;
 
+import static lombok.Lombok.sneakyThrow;
+import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
+
 import com.google.common.base.Strings;
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookEventModel;
@@ -165,7 +168,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   /** Schedule dispatch to all webhooks and system */
   private void processEvent(KeycloakEventType type, ExtendedAdminEvent event, String realmId) {
-    KeycloakModelUtils.runJobInTransaction(
+    runJobInTransaction(
         factory,
         (session) -> {
           if (type.keycloakNative()) {
@@ -336,26 +339,52 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   }
 
   @Override
-  void send(SenderTask task) throws SenderException, IOException {
+  void send(SenderTask task) {
     String targetUri = task.getProperties().get("url");
     String authType = task.getProperties().get("authType");
     if (WebhookModel.AUTH_TYPE_BEARER.equalsIgnoreCase(authType)) {
+      // minted in its own transaction, before the one used for sending is opened
       String bearer = generateBearerToken(task);
-      send(
-          task,
-          targetUri,
-          request -> {
-            if (bearer != null) request.header("Authorization", "Bearer " + bearer);
+      runJobInTransaction(
+          factory,
+          session -> {
+            try {
+              send(
+                  task,
+                  targetUri,
+                  request -> {
+                    if (bearer != null) request.header("Authorization", "Bearer " + bearer);
+                  },
+                  session);
+            } catch (SenderException e) {
+              throw sneakyThrow(e);
+            }
           });
     } else if (WebhookModel.AUTH_TYPE_NONE.equalsIgnoreCase(authType)) {
       // explicitly unauthenticated: never attach a signature, even if a secret is present
-      send(task, targetUri, Optional.empty(), Optional.empty());
+      sendSigned(task, targetUri, Optional.empty(), Optional.empty());
     } else {
       // hmac (or a legacy webhook with no authType): sign only when a secret is present
       Optional<String> sharedSecret = Optional.ofNullable(task.getProperties().get("secret"));
       Optional<String> hmacAlgorithm = Optional.ofNullable(task.getProperties().get("algorithm"));
-      send(task, targetUri, sharedSecret, hmacAlgorithm);
+      sendSigned(task, targetUri, sharedSecret, hmacAlgorithm);
     }
+  }
+
+  private void sendSigned(
+      SenderTask task,
+      String targetUri,
+      Optional<String> sharedSecret,
+      Optional<String> hmacAlgorithm) {
+    runJobInTransaction(
+        factory,
+        session -> {
+          try {
+            send(task, targetUri, sharedSecret, hmacAlgorithm, session);
+          } catch (SenderException e) {
+            throw sneakyThrow(e);
+          }
+        });
   }
 
   /**
@@ -374,7 +403,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     final AtomicReference<String> token = new AtomicReference<>();
     try {
       final String body = JsonSerialization.writeValueAsString(task.getEvent());
-      KeycloakModelUtils.runJobInTransaction(
+      runJobInTransaction(
           factory,
           (session) -> {
             RealmModel realm = session.realms().getRealm(realmId);

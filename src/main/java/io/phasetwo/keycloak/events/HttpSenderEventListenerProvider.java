@@ -2,6 +2,8 @@ package io.phasetwo.keycloak.events;
 
 import static java.net.HttpURLConnection.HTTP_MULT_CHOICE;
 import static java.net.HttpURLConnection.HTTP_OK;
+import static lombok.Lombok.sneakyThrow;
+import static org.keycloak.models.utils.KeycloakModelUtils.runJobInTransaction;
 
 import com.github.xgp.util.BackOff;
 import com.github.xgp.util.ExponentialBackOff;
@@ -13,15 +15,16 @@ import java.util.function.Consumer;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
+import org.keycloak.connections.httpclient.HttpClientProvider;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.util.JsonSerialization;
 
 @JBossLog
 public class HttpSenderEventListenerProvider extends SenderEventListenerProvider {
 
+  private final KeycloakSessionFactory sessionFactory;
   protected static final String TARGET_URI = "targetUri";
   protected static final String RETRY = "retry";
   protected static final String SHARED_SECRET = "sharedSecret";
@@ -34,6 +37,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   public HttpSenderEventListenerProvider(KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
+    this.sessionFactory = session.getKeycloakSessionFactory();
   }
 
   @Override
@@ -65,12 +69,24 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   @Override
   void send(SenderTask task) throws SenderException, IOException {
-    send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm());
+    runJobInTransaction(
+        sessionFactory,
+        session -> {
+          try {
+            send(task, getTargetUri(), getSharedSecret(), getHmacAlgorithm(), session);
+          } catch (SenderException e) {
+            throw sneakyThrow(e);
+          }
+        });
   }
 
   protected void send(
-      SenderTask task, String targetUri, Optional<String> sharedSecret, Optional<String> algorithm)
-      throws SenderException, IOException {
+      SenderTask task,
+      String targetUri,
+      Optional<String> sharedSecret,
+      Optional<String> algorithm,
+      KeycloakSession session)
+      throws SenderException {
     send(
         task,
         targetUri,
@@ -79,24 +95,30 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
                 secret ->
                     request.header(
                         "X-Keycloak-Signature",
-                        hmacFor(
-                            task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM)))));
+                        hmacFor(task.getEvent(), secret, algorithm.orElse(HMAC_SHA256_ALGORITHM)))),
+        session);
   }
 
   /**
    * Send the payload, applying an arbitrary authentication decorator (e.g. an HMAC signature header
-   * or an {@code Authorization: Bearer} JWT) to the request before it is sent.
+   * or an {@code Authorization: Bearer} JWT) to the request before it is sent. The request is made
+   * with the HTTP client provided by Keycloak, so that the server's outgoing HTTP configuration
+   * (e.g. proxy mappings) is honored.
    */
-  protected void send(SenderTask task, String targetUri, Consumer<LegacySimpleHttp> authDecorator)
-      throws SenderException, IOException {
+  protected void send(
+      SenderTask task,
+      String targetUri,
+      Consumer<LegacySimpleHttp> authDecorator,
+      KeycloakSession session)
+      throws SenderException {
     task.incrementAndGetAttempt();
     log.debugf("attempting send to %s", targetUri);
-    try (CloseableHttpClient http = HttpClients.createDefault()) {
-      LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, http).json(task.getEvent());
-      if (authDecorator != null) {
-        authDecorator.accept(request);
-      }
-      LegacySimpleHttp.Response response = request.asResponse();
+    var httpClient = session.getProvider(HttpClientProvider.class).getHttpClient();
+    LegacySimpleHttp request = LegacySimpleHttp.doPost(targetUri, httpClient).json(task.getEvent());
+    if (authDecorator != null) {
+      authDecorator.accept(request);
+    }
+    try (LegacySimpleHttp.Response response = request.asResponse()) {
       int status = response.getStatus();
       log.debugf("sent to %s (%d)", targetUri, status);
       doAfterSend(task, status);
