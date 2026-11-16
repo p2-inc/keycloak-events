@@ -169,6 +169,25 @@ public class WebhookFormatConfigTest extends AbstractResourceTest {
       assertThat(put.getStatus(), is(204));
       assertThat(get(id).getConfig().get("note"), is("changed"));
 
+      // one update that removes, adds and changes entries
+      WebhookRepresentation again = get(id);
+      again.setConfig(Map.of("header.X-Api-Key", "**********", "other", "added"));
+      put =
+          LegacySimpleHttp.doPut(baseUrl() + "/" + urlencode(id), httpClient)
+              .auth(token())
+              .json(again)
+              .asResponse();
+      assertThat(put.getStatus(), is(204));
+      assertThat(
+          get(id).getConfig(), is(Map.of("header.X-Api-Key", "**********", "other", "added")));
+      again.setConfig(Map.of("header.X-Api-Key", "k3y-v4lue", "other", "added"));
+      put =
+          LegacySimpleHttp.doPut(baseUrl() + "/" + urlencode(id), httpClient)
+              .auth(token())
+              .json(again)
+              .asResponse();
+      assertThat(put.getStatus(), is(204));
+
       createUser(keycloak, "master", "fmt-headers-user");
       Captured c = server.await(WAIT, WebhookFormatConfigTest::isUserCreate);
       assertThat(c.header("X-Api-Key"), is("k3y-v4lue"));

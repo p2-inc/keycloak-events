@@ -6,7 +6,7 @@ import org.keycloak.connections.jpa.entityprovider.JpaEntityProvider;
 
 public class WebhookEntityProvider implements JpaEntityProvider {
 
-  private static Class<?>[] entities = {WebhookEntity.class};
+  private static Class<?>[] entities = {WebhookEntity.class, WebhookConfigEntity.class};
 
   @Override
   public List<Class<?>> getEntities() {

@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.model.jpa.entity;
 
 import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -9,17 +10,15 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 @NamedQueries({
@@ -72,13 +71,12 @@ public class WebhookEntity {
   @Column(name = "PAYLOAD_FORMAT")
   protected String payloadFormat;
 
-  @ElementCollection(fetch = FetchType.EAGER)
-  @MapKeyColumn(name = "NAME")
-  @Column(name = "VALUE", length = 4000)
-  @CollectionTable(
-      name = "WEBHOOK_CONFIG",
-      joinColumns = {@JoinColumn(name = "WEBHOOK_ID")})
-  protected Map<String, String> config = new HashMap<>();
+  @OneToMany(
+      mappedBy = "webhook",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.EAGER)
+  protected Set<WebhookConfigEntity> config = new HashSet<>();
 
   @Column(name = "CREATED_BY_USER_ID")
   protected String createdBy;
@@ -172,11 +170,11 @@ public class WebhookEntity {
     this.payloadFormat = payloadFormat;
   }
 
-  public Map<String, String> getConfig() {
+  public Set<WebhookConfigEntity> getConfig() {
     return config;
   }
 
-  public void setConfig(Map<String, String> config) {
+  public void setConfig(Set<WebhookConfigEntity> config) {
     this.config = config;
   }
 

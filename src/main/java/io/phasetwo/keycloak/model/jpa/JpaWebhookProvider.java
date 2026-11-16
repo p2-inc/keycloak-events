@@ -93,7 +93,7 @@ public class JpaWebhookProvider implements WebhookProvider {
 
   @Override
   public void removeWebhooks(RealmModel realm) {
-    // remove entity by entity so the element collections (event types, config) are deleted too;
+    // remove entity by entity so event types and config rows are deleted too;
     // a bulk JPQL delete would leave their rows behind and violate the foreign keys.
     TypedQuery<WebhookEntity> query =
         em.createNamedQuery("getWebhooksByRealmId", WebhookEntity.class);

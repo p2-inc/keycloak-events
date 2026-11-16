@@ -1,15 +1,18 @@
 package io.phasetwo.keycloak.model.jpa;
 
 import io.phasetwo.keycloak.model.WebhookModel;
+import io.phasetwo.keycloak.model.jpa.entity.WebhookConfigEntity;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEntity;
 import jakarta.persistence.EntityManager;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.jpa.JpaModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
 
 public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
 
@@ -108,13 +111,31 @@ public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
 
   @Override
   public Map<String, String> getConfig() {
-    return webhook.getConfig();
+    Map<String, String> config = new HashMap<>();
+    webhook.getConfig().forEach(c -> config.put(c.getName(), c.getValue()));
+    return config;
   }
 
   @Override
   public void setConfig(Map<String, String> config) {
-    webhook.getConfig().clear();
-    if (config != null) webhook.getConfig().putAll(config);
+    Map<String, String> incoming = config == null ? Map.of() : config;
+    // update existing rows in place: Hibernate flushes inserts before deletes, so replacing a
+    // row with the same name would violate the (WEBHOOK_ID, NAME) unique key
+    webhook.getConfig().removeIf(c -> !incoming.containsKey(c.getName()));
+    Map<String, WebhookConfigEntity> existing = new HashMap<>();
+    webhook.getConfig().forEach(c -> existing.put(c.getName(), c));
+    incoming.forEach(
+        (name, value) -> {
+          WebhookConfigEntity c = existing.get(name);
+          if (c == null) {
+            c = new WebhookConfigEntity();
+            c.setId(KeycloakModelUtils.generateId());
+            c.setWebhook(webhook);
+            c.setName(name);
+            webhook.getConfig().add(c);
+          }
+          c.setValue(value);
+        });
   }
 
   @Override
