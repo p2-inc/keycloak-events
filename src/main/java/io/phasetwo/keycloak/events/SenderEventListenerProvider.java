@@ -5,6 +5,8 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import io.phasetwo.keycloak.config.Configurable;
+import io.phasetwo.keycloak.events.format.FormattedPayload;
+import io.phasetwo.keycloak.events.format.WebhookPayloadFormatter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +64,11 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
     private final BackOff backOff;
     private int attempt = 0;
     private Map<String, String> properties = Maps.newHashMap();
+    // formatter output, computed once and reused for every attempt. never logged.
+    private FormattedPayload payload;
+    private WebhookPayloadFormatter formatter;
+    // per-webhook format/auth configuration (may contain credentials). never logged.
+    private Map<String, String> config = Map.of();
 
     public SenderTask(Object event, BackOff backOff) {
       this.event = event;
@@ -78,6 +85,30 @@ public abstract class SenderEventListenerProvider implements EventListenerProvid
 
     public Map<String, String> getProperties() {
       return this.properties;
+    }
+
+    public FormattedPayload getPayload() {
+      return this.payload;
+    }
+
+    public void setPayload(FormattedPayload payload) {
+      this.payload = payload;
+    }
+
+    public WebhookPayloadFormatter getFormatter() {
+      return this.formatter;
+    }
+
+    public void setFormatter(WebhookPayloadFormatter formatter) {
+      this.formatter = formatter;
+    }
+
+    public Map<String, String> getConfig() {
+      return this.config;
+    }
+
+    public void setConfig(Map<String, String> config) {
+      this.config = config == null ? Map.of() : config;
     }
 
     public int getAttempt() {

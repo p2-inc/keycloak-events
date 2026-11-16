@@ -4,6 +4,7 @@ import io.phasetwo.keycloak.model.WebhookModel;
 import io.phasetwo.keycloak.model.jpa.entity.WebhookEntity;
 import jakarta.persistence.EntityManager;
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
@@ -93,6 +94,27 @@ public class WebhookAdapter implements WebhookModel, JpaModel<WebhookEntity> {
   @Override
   public void setAudience(String audience) {
     webhook.setAudience(audience);
+  }
+
+  @Override
+  public String getPayloadFormat() {
+    return webhook.getPayloadFormat();
+  }
+
+  @Override
+  public void setPayloadFormat(String payloadFormat) {
+    webhook.setPayloadFormat(payloadFormat);
+  }
+
+  @Override
+  public Map<String, String> getConfig() {
+    return webhook.getConfig();
+  }
+
+  @Override
+  public void setConfig(Map<String, String> config) {
+    webhook.getConfig().clear();
+    if (config != null) webhook.getConfig().putAll(config);
   }
 
   @Override

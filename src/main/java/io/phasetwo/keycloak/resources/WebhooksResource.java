@@ -1,6 +1,9 @@
 package io.phasetwo.keycloak.resources;
 
 import io.phasetwo.keycloak.events.WebhookSenderEventListenerProvider;
+import io.phasetwo.keycloak.events.auth.WebhookAuthConfig;
+import io.phasetwo.keycloak.events.format.WebhookPayloadFormatterFactory;
+import io.phasetwo.keycloak.events.format.WebhookPayloadFormatters;
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
@@ -25,11 +28,17 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.services.resources.admin.AdminRoot;
 
 @JBossLog
@@ -81,7 +90,19 @@ public class WebhooksResource extends AbstractAdminResource {
     webhook.setAlgorithm(w.getAlgorithm());
     webhook.setAuthType(w.getAuthType());
     webhook.setAudience(w.getAudience());
-    // no secret
+    webhook.setPayloadFormat(w.getPayloadFormat());
+    // no secret, and secret config values are masked
+    Map<String, String> config = new TreeMap<>();
+    w.getConfig()
+        .forEach(
+            (k, v) ->
+                config.put(
+                    k,
+                    WebhookPayloadFormatters.isSecretKey(
+                            session.getKeycloakSessionFactory(), w.getPayloadFormat(), k)
+                        ? WebhookPayloadFormatters.SECRET_MASK
+                        : v));
+    webhook.setConfig(config);
     return webhook;
   }
 
@@ -128,6 +149,28 @@ public class WebhooksResource extends AbstractAdminResource {
             .path(w.getId())
             .build();
     return Response.created(location).build();
+  }
+
+  /** The installed payload formats and the config options each one reads. */
+  @GET
+  @Path("formats")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Stream<Map<String, Object>> getPayloadFormats() {
+    permissions.realm().requireViewEvents();
+    return WebhookPayloadFormatters.getFactories(session.getKeycloakSessionFactory()).stream()
+        .sorted(Comparator.comparing(WebhookPayloadFormatterFactory::getId))
+        .map(
+            f -> {
+              Map<String, Object> m = new LinkedHashMap<>();
+              m.put("id", f.getId());
+              m.put("helpText", f.getHelpText());
+              m.put(
+                  "properties",
+                  f.getConfigProperties().stream()
+                      .map(ModelToRepresentation::toRepresentation)
+                      .toList());
+              return m;
+            });
   }
 
   @GET
@@ -328,6 +371,41 @@ public class WebhooksResource extends AbstractAdminResource {
     if (rep.getAudience() != null && !"".equals(rep.getAudience())) {
       w.setAudience(rep.getAudience());
     }
+    // null leaves the format unchanged; an empty string resets it to the server default
+    String payloadFormat = w.getPayloadFormat();
+    if (rep.getPayloadFormat() != null) {
+      payloadFormat = "".equals(rep.getPayloadFormat()) ? null : rep.getPayloadFormat();
+    }
+    Map<String, String> config = mergeConfig(w.getConfig(), rep.getConfig());
+    try {
+      WebhookPayloadFormatters.validate(session.getKeycloakSessionFactory(), payloadFormat, config);
+      WebhookAuthConfig.validate(authType, config);
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestException(e.getMessage());
+    }
+    w.setPayloadFormat(payloadFormat);
+    w.setConfig(config);
+  }
+
+  /**
+   * A null incoming config leaves the stored config unchanged. Otherwise the incoming map replaces
+   * it, except that masked secret values keep their stored value, so a representation read from
+   * the API can be sent back unchanged.
+   */
+  static Map<String, String> mergeConfig(Map<String, String> stored, Map<String, String> incoming) {
+    Map<String, String> current = stored == null ? Map.of() : stored;
+    if (incoming == null) return new HashMap<>(current);
+    Map<String, String> merged = new HashMap<>();
+    incoming.forEach(
+        (k, v) -> {
+          if (k == null || v == null) return;
+          if (WebhookPayloadFormatters.SECRET_MASK.equals(v)) {
+            if (current.containsKey(k)) merged.put(k, current.get(k));
+          } else {
+            merged.put(k, v);
+          }
+        });
+    return merged;
   }
 
   @DELETE

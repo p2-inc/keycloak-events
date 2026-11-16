@@ -9,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
 import jakarta.persistence.PrePersist;
@@ -16,7 +17,9 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 @NamedQueries({
@@ -65,6 +68,17 @@ public class WebhookEntity {
       name = "WEBHOOK_EVENT_TYPES",
       joinColumns = {@JoinColumn(name = "WEBHOOK_ID")})
   protected Set<String> eventTypes = new HashSet<>();
+
+  @Column(name = "PAYLOAD_FORMAT")
+  protected String payloadFormat;
+
+  @ElementCollection(fetch = FetchType.EAGER)
+  @MapKeyColumn(name = "NAME")
+  @Column(name = "VALUE", length = 4000)
+  @CollectionTable(
+      name = "WEBHOOK_CONFIG",
+      joinColumns = {@JoinColumn(name = "WEBHOOK_ID")})
+  protected Map<String, String> config = new HashMap<>();
 
   @Column(name = "CREATED_BY_USER_ID")
   protected String createdBy;
@@ -148,6 +162,22 @@ public class WebhookEntity {
 
   public void setEventTypes(Set<String> eventTypes) {
     this.eventTypes = eventTypes;
+  }
+
+  public String getPayloadFormat() {
+    return payloadFormat;
+  }
+
+  public void setPayloadFormat(String payloadFormat) {
+    this.payloadFormat = payloadFormat;
+  }
+
+  public Map<String, String> getConfig() {
+    return config;
+  }
+
+  public void setConfig(Map<String, String> config) {
+    this.config = config;
   }
 
   public String getCreatedBy() {
