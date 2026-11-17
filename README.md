@@ -317,6 +317,7 @@ A payload format changes what a webhook posts, so that events can be sent straig
 
 - [Webhook payload formats](docs/webhook-payload-formats.md): choosing a format, authenticating to ingestion APIs, and writing your own format
 - [Microsoft Sentinel](docs/payload-formats/azure-sentinel.md) (`azure-sentinel`)
+- [Datadog](docs/payload-formats/datadog.md) (`datadog`)
 - [Google SecOps](docs/payload-formats/google-secops.md) (`google-secops`)
 
 #### Authenticating the webhook payload
