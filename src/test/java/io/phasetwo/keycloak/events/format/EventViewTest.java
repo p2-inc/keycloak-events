@@ -23,7 +23,7 @@ public class EventViewTest {
     e.setAuthDetails(auth);
     e.setDetails(Map.of("username", "jdoe"));
 
-    EventView v = EventView.of(e);
+    EventView v = new EventView(e);
     assertThat(v.isUserEvent(), is(true));
     assertThat(v.isAdminEvent(), is(false));
     assertThat(v.category(), is("user"));
@@ -38,7 +38,7 @@ public class EventViewTest {
     ExtendedAdminEvent e = new ExtendedAdminEvent();
     e.setType("admin.USER-CREATE");
     e.setOperationType(OperationType.CREATE);
-    EventView v = EventView.of(e);
+    EventView v = new EventView(e);
     assertThat(v.isAdminEvent(), is(true));
     assertThat(v.category(), is("admin"));
     assertThat(v.nativeType(), is("CREATE"));
@@ -50,7 +50,7 @@ public class EventViewTest {
   public void testCustomEvent() {
     ExtendedAdminEvent e = new ExtendedAdminEvent();
     e.setType("system.ORG-CREATE");
-    EventView v = EventView.of(e);
+    EventView v = new EventView(e);
     assertThat(v.category(), is("system"));
     assertThat(v.nativeType(), is("ORG-CREATE"));
   }

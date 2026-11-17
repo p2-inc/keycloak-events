@@ -123,6 +123,9 @@ Configuration values:
 | `backoffMaxInterval` | N | 180000 | Maximum back off time in milliseconds |
 | `backoffMultiplier` | N | 5 | Multiplier value (E.g. 1.5 is 50% increase per back off) |
 | `backoffRandomizationFactor` | N | 0.5 | Randomization factor (E.g. 0.5 results in a random period ranging between 50% below and 50% above the retry interval) |
+| `format` | N | | A [payload format](docs/webhook-payload-formats.md) id. Without it, Keycloak's own event representation is sent |
+| `formatConfig` | N | | The payload format's options, as a JSON object of string values |
+| `headers` | N | | Request headers to add, as a JSON object of string values |
 
 ### Adding Configuration to your EventListenerProvider
 
@@ -283,6 +286,7 @@ Webhooks are managed with a custom REST resource with the following methods. Use
 | `/auth/realms/:realm/webhooks/:id` | `GET`    |                | Webhook object          | Get webhook    |
 | `/auth/realms/:realm/webhooks/:id` | `PUT`    | Webhook object | `204`                   | Update webhook |
 | `/auth/realms/:realm/webhooks/:id` | `DELETE` | Webhook object | `204`                   | Delete webhook |
+| `/auth/realms/:realm/webhooks/formats` | `GET` |               | List of payload formats | Get the installed [payload formats](docs/webhook-payload-formats.md) |
 
 The webhook object has this format:
 
@@ -296,22 +300,35 @@ The webhook object has this format:
   "algorithm": "HmacSHA256",
   "audience": null,
   "eventTypes": ["*"],
+  "payloadFormat": null,
+  "config": {},
   "createdBy": "ff730b72-a421-4f6e-9e4e-7fc7f53bac88",
   "createdAt": "2021-04-21T18:25:43-05:00"
 }
 ```
 
-For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks.
+For creating and updating of webhooks, `id`, `createdBy` and `createdAt` are ignored. `secret` is not sent when fetching webhooks, and secret `config` values are returned as `**********`.
+
+`payloadFormat` and `config` select and configure a [payload format](#payload-formats); leave them out to send the keycloak-events JSON payload.
+
+#### Payload formats
+
+A payload format changes what a webhook posts, so that events can be sent straight to a log or SIEM platform's ingestion API in the shape its parsers and detections expect.
+
+- [Webhook payload formats](docs/webhook-payload-formats.md): choosing a format, authenticating to ingestion APIs, and writing your own format
+- [Microsoft Sentinel](docs/payload-formats/azure-sentinel.md) (`azure-sentinel`)
 
 #### Authenticating the webhook payload
 
-Each webhook authenticates its payload one of three ways, selected by the `authType` field:
+Each webhook authenticates its payload one of these ways, selected by the `authType` field:
 
 | `authType` | Header | How the receiver verifies |
 | --- | --- | --- |
 | `none` | — | The payload is sent unauthenticated. |
 | `hmac` | `X-Keycloak-Signature` | Recompute the keyed-HMAC of the raw request body using the shared `secret` and compare. |
 | `bearer` | `Authorization: Bearer <jwt>` | Verify a short-lived JWT signed by the realm's active signing key against the realm's JWKS. No shared secret is required. |
+| `headers` | Any, from `config` | Static credentials such as an API key header. See [Authenticating to an ingestion API](docs/webhook-payload-formats.md#authenticating-to-an-ingestion-api). |
+| `oauth2-client-credentials` | `Authorization: Bearer <token>` | A token from an OAuth2 client credentials grant configured in `config`. See [Authenticating to an ingestion API](docs/webhook-payload-formats.md#authenticating-to-an-ingestion-api). |
 
 When `authType` is omitted, the historical behavior is preserved: a webhook with a `secret` defaults to `hmac`, and one without a secret defaults to `none`. Existing webhooks are therefore unchanged.
 
@@ -433,6 +450,8 @@ It is possible to disable the scripts run by the `ScriptEventListenerProvider` b
 There is a special catch-all webhook that can be used by system owners to always send events to an endpoint, even though it is not defined as a manageable webhook entity. Set the `WEBHOOK_URI` AND `WEBHOOK_SECRET` environment variables, and all events will be sent to this endpoint. This is used, for example, in cases where system owners want to send events to a more scalable store.
 
 The catch-all webhook can also authenticate with a bearer JWT instead of an HMAC shared secret (see [Authenticating the webhook payload](#authenticating-the-webhook-payload)). Set `WEBHOOK_AUTH_TYPE=bearer` and `WEBHOOK_AUDIENCE=<audience>`; `WEBHOOK_ALGORITHM` selects the JWS algorithm (defaults to `RS256`).
+
+To send the catch-all webhook's events in a [payload format](docs/webhook-payload-formats.md), set `WEBHOOK_FORMAT` to the format id and `WEBHOOK_CONFIG` to its `config` as a JSON object. See [Using a format without a managed webhook](docs/webhook-payload-formats.md#using-a-format-without-a-managed-webhook).
 
 ---
 

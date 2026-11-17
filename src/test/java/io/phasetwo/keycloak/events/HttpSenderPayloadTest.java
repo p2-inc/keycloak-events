@@ -11,6 +11,7 @@ import io.phasetwo.keycloak.Helpers;
 import io.phasetwo.keycloak.RecordingServer;
 import io.phasetwo.keycloak.RecordingServer.Captured;
 import io.phasetwo.keycloak.RecordingServer.Reply;
+import io.phasetwo.keycloak.events.auth.HmacSigner;
 import io.phasetwo.keycloak.events.format.FormattedPayload;
 import io.phasetwo.keycloak.events.format.WebhookPayloadFormatter;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
@@ -87,7 +88,7 @@ public class HttpSenderPayloadTest {
     assertThat(c.header("Content-Type"), is("application/json"));
     assertThat(
         c.header("X-Keycloak-Signature"),
-        is(HttpSenderEventListenerProvider.calculateHmacSha(expected, "s3cret", "HmacSHA256")));
+        is(new HmacSigner("HmacSHA256", "s3cret").sign(expected.getBytes(StandardCharsets.UTF_8))));
   }
 
   @Test
@@ -108,7 +109,7 @@ public class HttpSenderPayloadTest {
     assertThat(c.header("X-Format"), is("text"));
     assertThat(
         c.header("X-Keycloak-Signature"),
-        is(HttpSenderEventListenerProvider.calculateHmacSha(expected, "s3cret", "HmacSHA256")));
+        is(new HmacSigner("HmacSHA256", "s3cret").sign(expected)));
   }
 
   @Test

@@ -3,9 +3,8 @@ package io.phasetwo.keycloak.events;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Strings;
 import io.phasetwo.keycloak.events.auth.OAuth2TokenCache;
-import io.phasetwo.keycloak.events.auth.WebhookAuthConfig;
+import io.phasetwo.keycloak.events.format.PayloadFormats;
 import io.phasetwo.keycloak.events.format.WebhookPayloadFormatter;
-import io.phasetwo.keycloak.events.format.WebhookPayloadFormatters;
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
@@ -59,6 +58,7 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
 
   private final WebhookSenderConfig config;
   private final WebhookProvider webhooks;
+  private final OAuth2TokenCache oauth2Tokens;
 
   private final String systemUri;
   private final String systemSecret;
@@ -73,8 +73,12 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   private final String contextBaseUri;
 
   public WebhookSenderEventListenerProvider(
-      KeycloakSession session, ScheduledExecutorService exec, WebhookSenderConfig config) {
+      KeycloakSession session,
+      ScheduledExecutorService exec,
+      WebhookSenderConfig config,
+      OAuth2TokenCache oauth2Tokens) {
     super(session, exec);
+    this.oauth2Tokens = oauth2Tokens;
     this.factory = session.getKeycloakSessionFactory();
     this.runnableTrx = new RunnableTransaction();
     session.getTransactionManager().enlistAfterCompletion(runnableTrx);
@@ -85,14 +89,14 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
     this.systemAuthType = System.getenv(WEBHOOK_AUTH_TYPE_ENV);
     this.systemAudience = System.getenv(WEBHOOK_AUDIENCE_ENV);
     this.systemFormat = System.getenv(WEBHOOK_FORMAT_ENV);
-    this.systemConfig = parseConfig(System.getenv(WEBHOOK_CONFIG_ENV));
+    this.systemConfig = parseSystemConfig(System.getenv(WEBHOOK_CONFIG_ENV));
     this.contextBaseUri = captureBaseUri(session);
     this.config = config;
     this.webhooks = session.getProvider(WebhookProvider.class);
   }
 
   /** Parse the catch-all webhook's {@code WEBHOOK_CONFIG} JSON object of string values. */
-  static Map<String, String> parseConfig(String json) {
+  private Map<String, String> parseSystemConfig(String json) {
     if (Strings.isNullOrEmpty(json)) return Map.of();
     try {
       Map<String, String> config =
@@ -346,13 +350,15 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
       Map<String, String> webhookConfig) {
     SenderTask task = new SenderTask(customEvent, getBackOff());
     Map<String, String> taskConfig = webhookConfig == null ? Map.of() : Map.copyOf(webhookConfig);
-    WebhookPayloadFormatter formatter = WebhookPayloadFormatters.resolve(session, payloadFormat);
-    if (formatter == null) {
+    Optional<WebhookPayloadFormatter> resolved =
+        new PayloadFormats(session).formatter(payloadFormat);
+    if (resolved.isEmpty()) {
       log.warnf(
           "Unknown payload format %s for webhook %s. Event %s not sent.",
           payloadFormat, webhookId, customEvent.getId());
       return;
     }
+    WebhookPayloadFormatter formatter = resolved.get();
     try {
       task.setFormatter(formatter);
       task.setConfig(taskConfig);
@@ -400,13 +406,14 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   void send(SenderTask task) throws SenderException, IOException {
     String targetUri = task.getProperties().get("url");
     String authType = task.getProperties().get("authType");
-    if (WebhookAuthConfig.AUTH_TYPE_HEADERS.equalsIgnoreCase(authType)) {
-      Map<String, String> headers = WebhookAuthConfig.headers(task.getConfig());
+    WebhookConfig webhookConfig = new WebhookConfig(task.getConfig());
+    if (WebhookModel.AUTH_TYPE_HEADERS.equalsIgnoreCase(authType)) {
+      Map<String, String> headers = webhookConfig.headers();
       send(task, targetUri, request -> headers.forEach(request::header));
-    } else if (WebhookAuthConfig.AUTH_TYPE_OAUTH2.equalsIgnoreCase(authType)) {
+    } else if (WebhookModel.AUTH_TYPE_OAUTH2.equalsIgnoreCase(authType)) {
       String token;
       try {
-        token = OAuth2TokenCache.getToken(task.getConfig());
+        token = oauth2Tokens.getToken(webhookConfig.oauth2ClientCredentials());
       } catch (Exception e) {
         log.warnf(e, "Unable to obtain oauth2 token for webhook send to %s", targetUri);
         throw new SenderException(true, e);
@@ -434,10 +441,9 @@ public class WebhookSenderEventListenerProvider extends HttpSenderEventListenerP
   @Override
   protected void onFailureStatus(SenderTask task, int httpStatus) {
     if (httpStatus == 401
-        && WebhookAuthConfig.AUTH_TYPE_OAUTH2.equalsIgnoreCase(
-            task.getProperties().get("authType"))) {
+        && WebhookModel.AUTH_TYPE_OAUTH2.equalsIgnoreCase(task.getProperties().get("authType"))) {
       // the token may have been revoked or the clock skewed; fetch a new one on retry
-      OAuth2TokenCache.invalidate(task.getConfig());
+      oauth2Tokens.invalidate(new WebhookConfig(task.getConfig()).oauth2ClientCredentials());
     }
   }
 
