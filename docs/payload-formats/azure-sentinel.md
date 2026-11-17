@@ -23,7 +23,7 @@ You need:
 
 ## Set up Azure
 
-The steps use the Azure CLI. Replace the `<...>` values; the workspace must already exist, with Sentinel enabled on it.
+The steps use the Azure CLI, and follow Microsoft's [Logs Ingestion API](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview) guide. Replace the `<...>` values. The Log Analytics workspace must already exist, with Sentinel enabled on it, and the table, the DCR and the workspace must be in the same region.
 
 ### 1. Create the custom table
 
@@ -293,7 +293,7 @@ If the token endpoint can't be reached, the send is retried with backoff.
 
 ## Troubleshooting
 
-Enable [logging of webhook send attempts](../../README.md#logging-webhook-send-attempts) to see each response status.
+Enable [logging of webhook send attempts](../webhooks.md#logging-webhook-send-attempts) to see each response status.
 
 | Symptom | Check |
 | --- | --- |

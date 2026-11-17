@@ -2,21 +2,20 @@
 
 The `google-secops` payload format sends Keycloak events to a Google Security Operations (formerly Chronicle) **webhook feed** with the **Keycloak** log type, so that Google's [default Keycloak parser](https://cloud.google.com/chronicle/docs/ingestion/default-parsers/keycloak) turns them into UDM events.
 
-That parser was written for Keycloak's event tables replicated by Google Datastream. This format wraps each event in the same change-record envelope, with the event as a row of Keycloak's `EVENT_ENTITY` or `ADMIN_EVENT_ENTITY` table, and with the plain Keycloak event type (`LOGIN`, not `access.LOGIN`) that the parser classifies events by.
+The field mapping Google publishes for that parser reads a change-record envelope: the event's fields under `payload` (`payload.type`, `payload.ip_address`, `payload.session_id`, ...), with `source_timestamp`, `source_metadata` and `uuid` beside it. This format wraps each event in that envelope, as a row of Keycloak's `EVENT_ENTITY` or `ADMIN_EVENT_ENTITY` table, with the plain Keycloak event type (`LOGIN`, not `access.LOGIN`).
+
+Google's guide describes sending keycloak-events' default payload to the feed, with the credentials in the URL. It was written before this format and the `headers` auth type existed. The default payload has none of the fields in Google's mapping table, which is why this format exists. See [How events map to UDM](#how-events-map-to-udm) for what has and hasn't been verified.
 
 See [Webhook payload formats](../webhook-payload-formats.md) for how formats and the `headers` auth type work in general.
 
 ## Set up Google SecOps
 
-1. **Create the feed.** In Google SecOps, go to SIEM Settings > Feeds > Add New Feed. Choose source type **Webhook** and log type **Keycloak**, and create the feed.
-2. **Generate a secret key** for the feed from its details page, and copy it. This is the feed secret.
-3. **Copy the feed's endpoint URL** from the feed details. It ends in `:importPushLogs`, for example:
+These steps follow Google's [webhook feed setup](https://cloud.google.com/chronicle/docs/administration/feed-management#set-up-webhook-feed). Your SecOps instance must be linked to a Google Cloud project with the Chronicle API enabled.
 
-   ```
-   https://<region>-chronicle.googleapis.com/v1alpha/projects/<project>/locations/<region>/instances/<instance-id>/feeds/<feed-id>:importPushLogs
-   ```
-
-4. **Create an API key** in the Google Cloud project linked to your SecOps instance: APIs & Services > Credentials > Create credentials > API key. Restrict it to the Chronicle API.
+1. **Create the feed.** In Google SecOps, go to **Settings** > **Feeds** (**SIEM Settings** > **Feeds** in some consoles) and click **Add New Feed**. Give it a name, choose source type **Webhook** and log type **Keycloak**, and submit it.
+2. **Generate the secret key.** Click **Generate Secret Key** and copy it. It is shown only once, and generating a new one invalidates the old one.
+3. **Copy the endpoint URL** from the **Endpoint Information** field on the feed's **Details** tab. Use the whole URL exactly as shown.
+4. **Create an API key** in the Google Cloud project linked to your SecOps instance: **APIs & Services** > **Credentials** > **Create credentials** > **API key**. Restrict it to the Chronicle API.
 
 ## Create the webhook
 
@@ -38,7 +37,16 @@ POST /auth/realms/:realm/webhooks
 }
 ```
 
-Google's setup guide shows the API key and secret as `key` and `secret` query parameters on the URL. That works too, but sending them as headers keeps them out of the webhook URL: `config` header values are masked by the API, while the URL is returned as-is and appears in [send logs](../../README.md#logging-webhook-send-attempts).
+**Which header names to use.** Google documents two pairs of header names for webhook feeds, and which one a feed accepts has not been confirmed against a live tenant. The example uses the pair from Google's Keycloak guide. If the feed answers `401` or `403`, use the other pair.
+
+| | API key | Feed secret key |
+| --- | --- | --- |
+| Google's [Keycloak guide](https://cloud.google.com/chronicle/docs/ingestion/default-parsers/keycloak) | `x-goog-chronicle-auth` | `x-chronicle-auth` |
+| Google's [feed management guide](https://cloud.google.com/chronicle/docs/administration/feed-management#set-up-webhook-feed) | `X-goog-api-key` | `X-Webhook-Access-Key` |
+
+To use the second pair, name the `config` entries `header.X-goog-api-key` and `header.X-Webhook-Access-Key`.
+
+**Why headers and not the URL.** Google also accepts the API key and secret as `key` and `secret` query parameters on the URL. Headers are safer: `config` header values are masked by the API, while the URL is returned as-is and appears in [send logs](../webhooks.md#logging-webhook-send-attempts).
 
 To send every realm's events from one server-wide webhook instead, use the catch-all webhook:
 
@@ -131,7 +139,7 @@ An admin event's `payload` has the columns of `ADMIN_EVENT_ENTITY`: `id`, `admin
 
 ## How events map to UDM
 
-The parser is Google's, and it changes over time; Google publishes its field mapping on the [Keycloak parser page](https://cloud.google.com/chronicle/docs/ingestion/default-parsers/keycloak). The records above follow that page and the parser's changelog, but have **not been checked against a live SecOps tenant**. After setting up the feed, check a few events in your tenant before relying on detections:
+The parser is Google's, and it changes over time. Google publishes its field mapping on the [Keycloak parser page](https://cloud.google.com/chronicle/docs/ingestion/default-parsers/keycloak). The records above follow that mapping, but have **not been checked against a live SecOps tenant**. After setting up the feed, check a few events in your tenant before relying on detections:
 
 - A `LOGIN` should become a `USER_LOGIN` event with the principal user and IP address filled in.
 - Admin events may be parsed as generic events: the parser's documentation describes user events only.
@@ -158,14 +166,14 @@ If events are ingested but parse poorly, a [parser extension](https://cloud.goog
 
 ## Limits
 
-- Each request carries one event. Webhook feeds accept up to 4 MB per request.
+- Each request carries one event. Webhook feeds accept up to 4 MB per request and 15,000 requests per second per SecOps instance.
 
 ## Troubleshooting
 
-Enable [logging of webhook send attempts](../../README.md#logging-webhook-send-attempts) to see each response status.
+Enable [logging of webhook send attempts](../webhooks.md#logging-webhook-send-attempts) to see each response status.
 
 | Symptom | Check |
 | --- | --- |
 | `401` or `403` | `header.x-goog-chronicle-auth` is an API key from the project linked to SecOps, allowed to call the Chronicle API, and `header.x-chronicle-auth` is the feed's current secret. Generating a new secret invalidates the old one. |
-| `404` | The URL is the feed's endpoint, copied from the feed details. |
+| `404` | The URL is the feed's whole endpoint URL, copied from the **Endpoint Information** field of the feed's details. |
 | `200` but no events | Check the feed's status in SIEM Settings > Feeds, and search the raw logs for `KEYCLOAK`. |

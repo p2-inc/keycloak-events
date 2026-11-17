@@ -1,6 +1,6 @@
 # Webhook payload formats
 
-By default a webhook posts the keycloak-events JSON representation of each event (see [Webhooks](../README.md#webhooks)). A **payload format** changes what is posted, so that events can go straight into a log or security platform's ingestion API, in the shape that platform's parsers and detections expect.
+By default a [webhook](webhooks.md) posts the keycloak-events JSON representation of each event. A **payload format** changes what is posted, so that events can go straight into a log or security platform's ingestion API, in the shape that platform's parsers and detections expect.
 
 | Format id | Sends to | Guide |
 | --- | --- | --- |
@@ -10,6 +10,14 @@ By default a webhook posts the keycloak-events JSON representation of each event
 | `google-secops` | Google Security Operations, through a webhook feed with the Keycloak log type | [Google SecOps](payload-formats/google-secops.md) |
 
 Formats are pluggable: other extensions can add their own (see [Writing your own format](#writing-your-own-format)). `GET /auth/realms/:realm/webhooks/formats` lists the formats installed on a server.
+
+## What a format does and doesn't do
+
+- **It changes the request body,** and may add request headers. The same body is what the `hmac` signature and the `bearer` token's body hash are computed over.
+- **It doesn't change which events are sent.** That is still the webhook's `eventTypes`.
+- **It doesn't authenticate the request.** That is the webhook's `authType`. Each vendor guide says which one to use.
+- **It doesn't batch.** Each request carries one event.
+- **It doesn't create anything on the receiving platform.** Tables, feeds, API keys and the like are set up there first; each vendor guide has the steps.
 
 ## Choosing a format for a webhook
 
@@ -80,11 +88,11 @@ The `hmac`, `bearer` and `none` auth types work with every format too. The HMAC 
 
 ## Retries
 
-Webhooks are retried with exponential backoff when the receiver doesn't answer `2xx` (see [Webhooks](../README.md#webhooks)). The `default` format retries every failure. Vendor formats don't retry responses that can't succeed on a retry, such as a malformed request or a forbidden API key; each vendor guide lists them.
+Webhooks are retried with exponential backoff when the receiver doesn't answer `2xx` (see [Delivery and retries](webhooks.md#delivery-and-retries)). The `default` format retries every failure. Vendor formats don't retry responses that can't succeed on a retry, such as a malformed request or a forbidden API key; each vendor guide lists them.
 
 ## Using a format without a managed webhook
 
-**The catch-all webhook.** A server operator can give the catch-all webhook (`WEBHOOK_URI`) a format with these environment variables:
+**The catch-all webhook.** A server operator can give the [catch-all webhook](webhooks.md#the-catch-all-webhook) (`WEBHOOK_URI`) a format with these environment variables:
 
 | Env var | Description |
 | --- | --- |
@@ -99,7 +107,7 @@ WEBHOOK_AUTH_TYPE=oauth2-client-credentials
 WEBHOOK_CONFIG={"oauth2.tokenUrl":"https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token","oauth2.clientId":"<application-id>","oauth2.clientSecret":"<client-secret>","oauth2.scope":"https://monitor.azure.com//.default"}
 ```
 
-**The HTTP sender.** The `ext-event-http` listener takes a format in its realm configuration (see [HTTP Sender](../README.md#http-sender)):
+**The HTTP sender.** The `ext-event-http` listener takes a format in its realm configuration (see [HTTP sender](http-sender.md)):
 
 | Name | Description |
 | --- | --- |

@@ -23,9 +23,15 @@ See [Webhook payload formats](../webhook-payload-formats.md) for how formats and
    | EU1 (`datadoghq.eu`) | `https://http-intake.logs.datadoghq.eu/api/v2/logs` |
    | AP1 (`ap1.datadoghq.com`) | `https://http-intake.logs.ap1.datadoghq.com/api/v2/logs` |
    | AP2 (`ap2.datadoghq.com`) | `https://http-intake.logs.ap2.datadoghq.com/api/v2/logs` |
+   | UK1 (`uk1.datadoghq.com`) | `https://http-intake.logs.uk1.datadoghq.com/api/v2/logs` |
    | US1-FED (`ddog-gov.com`) | `https://http-intake.logs.ddog-gov.com/api/v2/logs` |
+   | US2-FED (`us2.ddog-gov.com`) | `https://http-intake.logs.us2.ddog-gov.com/api/v2/logs` |
 
-3. Optionally, for Cloud SIEM detections, enable the **Keycloak** content pack under Security > Cloud SIEM > Content Packs. Datadog applies its Keycloak log pipeline to `source:keycloak` logs automatically.
+   Datadog lists the current hosts under [Send logs](https://docs.datadoghq.com/api/latest/logs/#send-logs).
+
+3. Optionally, for Cloud SIEM detections, enable the **Keycloak** [content pack](https://docs.datadoghq.com/security/cloud_siem/ingest_and_enrich/content_packs/) under **Security** > **Cloud SIEM** > **Content Packs**. Datadog applies its [Keycloak](https://docs.datadoghq.com/integrations/keycloak/) log pipeline to `source:keycloak` logs automatically.
+
+You don't need the Datadog Agent or Keycloak's syslog output, which Datadog's Keycloak integration page describes. This format posts log entries straight to the intake API, in a form the same pipeline parses.
 
 ## Create the webhook
 
@@ -165,7 +171,7 @@ A complete entry for a login:
 
 ## Troubleshooting
 
-Enable [logging of webhook send attempts](../../README.md#logging-webhook-send-attempts) to see each response status.
+Enable [logging of webhook send attempts](../webhooks.md#logging-webhook-send-attempts) to see each response status.
 
 | Symptom | Check |
 | --- | --- |
