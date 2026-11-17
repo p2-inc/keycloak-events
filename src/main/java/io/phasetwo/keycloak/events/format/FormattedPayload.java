@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.events.format;
 
+import io.phasetwo.keycloak.PublicAPI;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -10,6 +11,7 @@ import java.util.Map;
  * @param contentType the {@code Content-Type} header value
  * @param headers additional, non-secret request headers (e.g. {@code Content-Encoding}); never null
  */
+@PublicAPI(unstable = true)
 public record FormattedPayload(byte[] body, String contentType, Map<String, String> headers) {
 
   public static final String APPLICATION_JSON = "application/json";
@@ -20,6 +22,12 @@ public record FormattedPayload(byte[] body, String contentType, Map<String, Stri
     headers = headers == null ? Map.of() : Map.copyOf(headers);
   }
 
+  /**
+   * A UTF-8 JSON payload with no extra headers.
+   *
+   * @param body the JSON text
+   * @return the payload
+   */
   public static FormattedPayload json(String body) {
     return new FormattedPayload(body.getBytes(StandardCharsets.UTF_8), APPLICATION_JSON, Map.of());
   }
