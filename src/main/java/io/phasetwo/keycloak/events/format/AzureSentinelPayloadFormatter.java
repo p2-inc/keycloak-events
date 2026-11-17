@@ -29,7 +29,6 @@ import org.keycloak.util.JsonSerialization;
  */
 public class AzureSentinelPayloadFormatter implements WebhookPayloadFormatter {
 
-  /** A column of the stream declaration: name and Log Analytics type. */
   /**
    * A column of the stream declaration.
    *
