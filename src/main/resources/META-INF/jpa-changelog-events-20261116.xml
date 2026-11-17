@@ -1,0 +1,25 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+  <!-- webhook payload format (webhook-payload-formatter provider id) and per-webhook config -->
+  <changeSet author="xgp" id="202611161200-1">
+    <addColumn tableName="WEBHOOK">
+      <column name="PAYLOAD_FORMAT" type="VARCHAR(64)"/>
+    </addColumn>
+    <createTable tableName="WEBHOOK_CONFIG">
+      <column name="WEBHOOK_CONFIG_ID" type="VARCHAR(36)">
+        <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WEBHOOK_CONFIG"/>
+      </column>
+      <column name="WEBHOOK_ID" type="VARCHAR(36)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="NAME" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="VALUE" type="VARCHAR(4000)"/>
+    </createTable>
+    <addUniqueConstraint columnNames="WEBHOOK_ID, NAME" constraintName="UK_WEBHOOK_CONFIG_NAME" tableName="WEBHOOK_CONFIG"/>
+    <addForeignKeyConstraint baseColumnNames="WEBHOOK_ID" baseTableName="WEBHOOK_CONFIG" constraintName="FK_WEBHOOK_CONFIG_WEBHOOK" referencedColumnNames="ID" referencedTableName="WEBHOOK"/>
+  </changeSet>
+
+</databaseChangeLog>

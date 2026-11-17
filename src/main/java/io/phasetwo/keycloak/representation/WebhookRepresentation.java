@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.representation;
 
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
 import lombok.Data;
 
@@ -13,6 +14,8 @@ public class WebhookRepresentation {
   private String algorithm;
   private String authType;
   private String audience;
+  private String payloadFormat;
+  private Map<String, String> config;
   private String createdBy;
   private Date createdAt;
   private String realm;

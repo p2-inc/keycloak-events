@@ -1,6 +1,7 @@
 package io.phasetwo.keycloak.model;
 
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -50,6 +51,22 @@ public interface WebhookModel {
   String getAudience();
 
   void setAudience(String audience);
+
+  /**
+   * Id of the {@code webhook-payload-formatter} provider used for this webhook. Null means the
+   * server-wide default format.
+   */
+  String getPayloadFormat();
+
+  void setPayloadFormat(String payloadFormat);
+
+  /**
+   * Formatter options and auth settings for this webhook. Returns a mutable view; changes are
+   * persisted.
+   */
+  Map<String, String> getConfig();
+
+  void setConfig(Map<String, String> config);
 
   RealmModel getRealm();
 

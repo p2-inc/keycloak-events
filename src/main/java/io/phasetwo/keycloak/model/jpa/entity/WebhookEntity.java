@@ -2,6 +2,7 @@ package io.phasetwo.keycloak.model.jpa.entity;
 
 import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -11,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.NamedQueries;
 import jakarta.persistence.NamedQuery;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
@@ -65,6 +67,16 @@ public class WebhookEntity {
       name = "WEBHOOK_EVENT_TYPES",
       joinColumns = {@JoinColumn(name = "WEBHOOK_ID")})
   protected Set<String> eventTypes = new HashSet<>();
+
+  @Column(name = "PAYLOAD_FORMAT")
+  protected String payloadFormat;
+
+  @OneToMany(
+      mappedBy = "webhook",
+      cascade = CascadeType.ALL,
+      orphanRemoval = true,
+      fetch = FetchType.EAGER)
+  protected Set<WebhookConfigEntity> config = new HashSet<>();
 
   @Column(name = "CREATED_BY_USER_ID")
   protected String createdBy;
@@ -148,6 +160,22 @@ public class WebhookEntity {
 
   public void setEventTypes(Set<String> eventTypes) {
     this.eventTypes = eventTypes;
+  }
+
+  public String getPayloadFormat() {
+    return payloadFormat;
+  }
+
+  public void setPayloadFormat(String payloadFormat) {
+    this.payloadFormat = payloadFormat;
+  }
+
+  public Set<WebhookConfigEntity> getConfig() {
+    return config;
+  }
+
+  public void setConfig(Set<WebhookConfigEntity> config) {
+    this.config = config;
   }
 
   public String getCreatedBy() {

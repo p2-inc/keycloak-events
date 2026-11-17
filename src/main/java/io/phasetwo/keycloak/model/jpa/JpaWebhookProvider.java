@@ -11,7 +11,6 @@ import io.phasetwo.keycloak.model.jpa.entity.WebhookSendEntity;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
-import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import java.io.IOException;
 import java.util.stream.Stream;
@@ -94,9 +93,13 @@ public class JpaWebhookProvider implements WebhookProvider {
 
   @Override
   public void removeWebhooks(RealmModel realm) {
-    Query query = em.createNamedQuery("removeAllWebhooks");
+    // remove entity by entity so event types and config rows are deleted too;
+    // a bulk JPQL delete would leave their rows behind and violate the foreign keys.
+    TypedQuery<WebhookEntity> query =
+        em.createNamedQuery("getWebhooksByRealmId", WebhookEntity.class);
     query.setParameter("realmId", realm.getId());
-    query.executeUpdate();
+    query.getResultList().forEach(em::remove);
+    em.flush();
   }
 
   @Override
