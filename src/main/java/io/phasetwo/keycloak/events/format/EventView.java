@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.events.format;
 
+import io.phasetwo.keycloak.PublicAPI;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.time.Instant;
@@ -9,6 +10,7 @@ import java.util.Map;
  * A flat, read-only view of an {@link ExtendedAdminEvent} for formatters, hiding the differences
  * between user ({@code access.*}), admin ({@code admin.*}) and custom ({@code system.*}) events.
  */
+@PublicAPI(unstable = true)
 public final class EventView {
 
   public static final String USER_PREFIX = "access.";
@@ -16,12 +18,8 @@ public final class EventView {
 
   private final ExtendedAdminEvent event;
 
-  private EventView(ExtendedAdminEvent event) {
+  public EventView(ExtendedAdminEvent event) {
     this.event = event;
-  }
-
-  public static EventView of(ExtendedAdminEvent event) {
-    return new EventView(event);
   }
 
   public ExtendedAdminEvent event() {

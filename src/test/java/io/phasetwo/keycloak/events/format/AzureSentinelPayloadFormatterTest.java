@@ -9,12 +9,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.phasetwo.keycloak.events.format.AzureSentinelPayloadFormatter.Column;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.util.JsonSerialization;
@@ -30,30 +28,6 @@ public class AzureSentinelPayloadFormatterTest {
 
   static final Set<String> TYPES =
       Set.of("string", "datetime", "dynamic", "int", "long", "real", "boolean");
-
-  /**
-   * Check rows against the declared stream columns: only declared columns, with values of the
-   * declared type. Shared with the integration test.
-   */
-  public static void assertRowsMatchStream(List<Map<String, Object>> rows) {
-    Map<String, String> types =
-        AzureSentinelPayloadFormatter.COLUMNS.stream()
-            .collect(Collectors.toMap(Column::name, Column::type));
-    for (Map<String, Object> row : rows) {
-      assertThat(row, hasKey("TimeGenerated"));
-      for (Map.Entry<String, Object> e : row.entrySet()) {
-        String type = types.get(e.getKey());
-        assertThat("undeclared column " + e.getKey(), type != null, is(true));
-        Object v = e.getValue();
-        switch (type) {
-          case "string" -> assertThat(e.getKey(), v instanceof String, is(true));
-          case "datetime" -> Instant.parse((String) v);
-          case "dynamic" -> assertThat(e.getKey(), v instanceof Map || v instanceof List, is(true));
-          default -> throw new AssertionError("unexpected type " + type);
-        }
-      }
-    }
-  }
 
   static List<Map<String, Object>> rows(FormattedPayload p) throws Exception {
     return JsonSerialization.readValue(p.body(), new TypeReference<List<Map<String, Object>>>() {});
@@ -90,7 +64,7 @@ public class AzureSentinelPayloadFormatterTest {
     FormattedPayload p = new AzureSentinelPayloadFormatter().format(List.of(e), Map.of());
     assertThat(p.contentType(), is("application/json"));
     List<Map<String, Object>> rows = rows(p);
-    assertRowsMatchStream(rows);
+    assertThat(rows, new MatchesSentinelStream());
     Map<String, Object> r = rows.get(0);
     assertThat(r.get("TimeGenerated"), is("2026-09-02T13:21:22.964Z"));
     assertThat(r.get("EventId"), is("ev-1"));
@@ -127,7 +101,7 @@ public class AzureSentinelPayloadFormatterTest {
 
     List<Map<String, Object>> rows =
         rows(new AzureSentinelPayloadFormatter().format(List.of(e), Map.of()));
-    assertRowsMatchStream(rows);
+    assertThat(rows, new MatchesSentinelStream());
     Map<String, Object> r = rows.get(0);
     assertThat(r.get("EventCategory"), is("admin"));
     assertThat(r.get("EventType"), is("UPDATE"));
@@ -148,7 +122,7 @@ public class AzureSentinelPayloadFormatterTest {
   public void testStreamColumnsJson() throws Exception {
     List<Map<String, String>> cols =
         JsonSerialization.readValue(
-            AzureSentinelPayloadFormatter.streamColumnsJson(),
+            new AzureSentinelPayloadFormatter().streamColumnsJson(),
             new TypeReference<List<Map<String, String>>>() {});
     assertThat(cols.size(), is(AzureSentinelPayloadFormatter.COLUMNS.size()));
     assertThat(cols.get(0), is(Map.of("name", "TimeGenerated", "type", "datetime")));

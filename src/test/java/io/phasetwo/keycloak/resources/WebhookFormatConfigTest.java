@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.phasetwo.keycloak.RecordingServer;
 import io.phasetwo.keycloak.RecordingServer.Captured;
 import io.phasetwo.keycloak.RecordingServer.Reply;
-import io.phasetwo.keycloak.events.HttpSenderEventListenerProvider;
+import io.phasetwo.keycloak.events.auth.HmacSigner;
 import io.phasetwo.keycloak.representation.RealmAttributeRepresentation;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.time.Duration;
@@ -86,6 +86,12 @@ public class WebhookFormatConfigTest extends AbstractResourceTest {
             .auth(token())
             .asJson(new TypeReference<List<Map<String, Object>>>() {});
     assertThat(formats.stream().map(f -> f.get("id")).toList(), hasItem("default"));
+    assertThat(formats.get(0).keySet(), is(Set.of("id", "helpText", "properties")));
+  }
+
+  @Test
+  public void testFormatsEndpointRequiresAuthentication() throws Exception {
+    assertThat(LegacySimpleHttp.doGet(baseUrl() + "/formats", httpClient).asStatus(), is(401));
   }
 
   @Test
@@ -132,9 +138,7 @@ public class WebhookFormatConfigTest extends AbstractResourceTest {
       assertThat(c.header("Content-Type"), is("application/json"));
       assertThat(
           c.header("X-Keycloak-Signature"),
-          is(
-              HttpSenderEventListenerProvider.calculateHmacSha(
-                  c.body(), "default-secret", "HmacSHA256")));
+          is(new HmacSigner("HmacSHA256", "default-secret").sign(c.body())));
     } finally {
       if (id != null) delete(id);
       removeEventListener(keycloak, "master", "ext-event-webhook");

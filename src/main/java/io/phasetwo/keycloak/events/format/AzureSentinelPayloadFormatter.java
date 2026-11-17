@@ -1,6 +1,5 @@
 package io.phasetwo.keycloak.events.format;
 
-import com.google.auto.service.AutoService;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
 /**
@@ -31,9 +29,13 @@ import org.keycloak.util.JsonSerialization;
  */
 public class AzureSentinelPayloadFormatter implements WebhookPayloadFormatter {
 
-  public static final String ID = "azure-sentinel";
-
   /** A column of the stream declaration: name and Log Analytics type. */
+  /**
+   * A column of the stream declaration.
+   *
+   * @param name the column name
+   * @param type the Log Analytics type
+   */
   public record Column(String name, String type) {}
 
   /** The stream columns, in order. */
@@ -79,7 +81,7 @@ public class AzureSentinelPayloadFormatter implements WebhookPayloadFormatter {
   public FormattedPayload format(List<ExtendedAdminEvent> events, Map<String, String> config)
       throws IOException {
     List<Map<String, Object>> rows = new ArrayList<>(events.size());
-    for (ExtendedAdminEvent e : events) rows.add(row(EventView.of(e)));
+    for (ExtendedAdminEvent e : events) rows.add(row(new EventView(e)));
     String body = JsonSerialization.writeValueAsString(rows);
     if (body.getBytes(StandardCharsets.UTF_8).length > MAX_BODY_BYTES) {
       // only possible with huge details; drop them rather than have the call rejected
@@ -94,7 +96,7 @@ public class AzureSentinelPayloadFormatter implements WebhookPayloadFormatter {
     return !NON_RETRYABLE.contains(httpStatus);
   }
 
-  static Map<String, Object> row(EventView v) {
+  Map<String, Object> row(EventView v) {
     Map<String, Object> r = new LinkedHashMap<>();
     r.put(
         "TimeGenerated",
@@ -127,43 +129,22 @@ public class AzureSentinelPayloadFormatter implements WebhookPayloadFormatter {
     return r;
   }
 
-  private static void put(Map<String, Object> r, String k, String v) {
+  private void put(Map<String, Object> r, String k, String v) {
     if (v != null) r.put(k, v);
   }
 
-  private static String truncate(String s) {
+  private String truncate(String s) {
     return s == null || s.length() <= MAX_FIELD_CHARS ? s : s.substring(0, MAX_FIELD_CHARS);
   }
 
-  /** The {@code streamDeclarations} columns JSON for a data collection rule. */
-  public static String streamColumnsJson() {
+  /**
+   * The {@code streamDeclarations} columns JSON for a data collection rule.
+   *
+   * @return the columns as a JSON array of {@code {"name":...,"type":...}} objects
+   */
+  public String streamColumnsJson() {
     return COLUMNS.stream()
         .map(c -> String.format("{\"name\":\"%s\",\"type\":\"%s\"}", c.name(), c.type()))
         .collect(Collectors.joining(",", "[", "]"));
-  }
-
-  @AutoService(WebhookPayloadFormatterFactory.class)
-  public static class Factory implements WebhookPayloadFormatterFactory {
-
-    @Override
-    public WebhookPayloadFormatter create(KeycloakSession session) {
-      return new AzureSentinelPayloadFormatter();
-    }
-
-    @Override
-    public String getId() {
-      return ID;
-    }
-
-    @Override
-    public String getHelpText() {
-      return "Microsoft Sentinel via the Azure Monitor Logs Ingestion API (POST"
-          + " {endpoint}/dataCollectionRules/{dcrImmutableId}/streams/{stream}?api-version=2023-01-01)."
-          + " Use authType 'oauth2-client-credentials' with oauth2.tokenUrl"
-          + " https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token, oauth2.clientId,"
-          + " oauth2.clientSecret and oauth2.scope https://monitor.azure.com//.default. Stream"
-          + " columns: "
-          + streamColumnsJson();
-    }
   }
 }

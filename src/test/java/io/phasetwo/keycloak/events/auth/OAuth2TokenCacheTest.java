@@ -16,9 +16,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -35,7 +33,8 @@ import org.junit.jupiter.api.Test;
 public class OAuth2TokenCacheTest {
 
   RecordingServer server;
-  Map<String, String> config;
+  OAuth2ClientCredentials config;
+  OAuth2TokenCache tokens = new OAuth2TokenCache(Duration.ofSeconds(10));
   AtomicInteger issued = new AtomicInteger();
   AtomicInteger status = new AtomicInteger(200);
   AtomicInteger delayMillis = new AtomicInteger();
@@ -50,7 +49,6 @@ public class OAuth2TokenCacheTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    OAuth2TokenCache.clear();
     int port = Helpers.nextFreePort(18201, 18300);
     server =
         new RecordingServer(port)
@@ -67,22 +65,19 @@ public class OAuth2TokenCacheTest {
                       : Reply.json(status.get(), "{\"error\":\"invalid_client\"}");
                 })
             .start();
-    config = new HashMap<>();
-    config.put(WebhookAuthConfig.OAUTH2_TOKEN_URL, "http://localhost:" + port + "/token");
-    config.put(WebhookAuthConfig.OAUTH2_CLIENT_ID, "client-a");
-    config.put(WebhookAuthConfig.OAUTH2_CLIENT_SECRET, "secret a&b");
-    config.put(WebhookAuthConfig.OAUTH2_SCOPE, "https://monitor.azure.com//.default");
+    config =
+        new OAuth2ClientCredentials(
+            "http://localhost:" + port + "/token",
+            "client-a",
+            "secret a&b",
+            "https://monitor.azure.com//.default");
   }
 
   @AfterEach
   void tearDown() throws Exception {
     server.close();
     if (stalled != null) stalled.close();
-    OAuth2TokenCache.clear();
-    OAuth2TokenCache.timeout = DEFAULT_TIMEOUT;
   }
-
-  static final Duration DEFAULT_TIMEOUT = OAuth2TokenCache.timeout;
 
   StalledEndpoint stalled;
 
@@ -109,14 +104,9 @@ public class OAuth2TokenCacheTest {
       t.start();
     }
 
-    Map<String, String> config(String clientId) {
-      Map<String, String> c = new HashMap<>();
-      c.put(
-          WebhookAuthConfig.OAUTH2_TOKEN_URL,
-          "http://localhost:" + socket.getLocalPort() + "/token");
-      c.put(WebhookAuthConfig.OAUTH2_CLIENT_ID, clientId);
-      c.put(WebhookAuthConfig.OAUTH2_CLIENT_SECRET, "secret");
-      return c;
+    OAuth2ClientCredentials credentials(String clientId) {
+      return new OAuth2ClientCredentials(
+          "http://localhost:" + socket.getLocalPort() + "/token", clientId, "secret", null);
     }
 
     @Override
@@ -128,8 +118,8 @@ public class OAuth2TokenCacheTest {
 
   @Test
   public void testFetchesOnceAndCaches() throws Exception {
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-1"));
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-1"));
+    assertThat(tokens.getToken(config), is("tok-1"));
+    assertThat(tokens.getToken(config), is("tok-1"));
     List<Captured> requests = server.drain();
     assertThat(requests, hasSize(1));
     String form = requests.get(0).bodyAsString();
@@ -144,52 +134,52 @@ public class OAuth2TokenCacheTest {
 
   @Test
   public void testInvalidateFetchesNewToken() throws Exception {
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-1"));
-    OAuth2TokenCache.invalidate(config);
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-2"));
+    assertThat(tokens.getToken(config), is("tok-1"));
+    tokens.invalidate(config);
+    assertThat(tokens.getToken(config), is("tok-2"));
   }
 
   @Test
   public void testDifferentClientsGetDifferentTokens() throws Exception {
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-1"));
-    Map<String, String> other = new HashMap<>(config);
-    other.put(WebhookAuthConfig.OAUTH2_CLIENT_ID, "client-b");
-    assertThat(OAuth2TokenCache.getToken(other), is("tok-2"));
-    assertThat(OAuth2TokenCache.getToken(config), is("tok-1"));
+    assertThat(tokens.getToken(config), is("tok-1"));
+    OAuth2ClientCredentials other =
+        new OAuth2ClientCredentials(config.tokenUrl(), "client-b", "secret a&b", config.scope());
+    assertThat(tokens.getToken(other), is("tok-2"));
+    assertThat(tokens.getToken(config), is("tok-1"));
   }
 
   @Test
   public void testTokenEndpointErrorThrows() throws Exception {
     status.set(401);
-    assertThrows(IOException.class, () -> OAuth2TokenCache.getToken(config));
+    assertThrows(IOException.class, () -> tokens.getToken(config));
     server.await(Duration.ofSeconds(1), c -> true);
   }
 
   @Test
   public void testStalledTokenEndpointTimesOut() throws Exception {
-    OAuth2TokenCache.timeout = Duration.ofMillis(500);
+    tokens = new OAuth2TokenCache(Duration.ofMillis(500));
     stalled = new StalledEndpoint();
-    Map<String, String> hung = stalled.config("hung-client");
+    OAuth2ClientCredentials hung = stalled.credentials("hung-client");
     long start = System.nanoTime();
-    assertThrows(IOException.class, () -> OAuth2TokenCache.getToken(hung));
+    assertThrows(IOException.class, () -> tokens.getToken(hung));
     assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis() < 3000, is(true));
   }
 
   @Test
   public void testStalledTokenEndpointDoesNotBlockOtherClients() throws Exception {
     // long enough that the hung fetch is certainly still in flight during the other fetch
-    OAuth2TokenCache.timeout = Duration.ofSeconds(5);
+    tokens = new OAuth2TokenCache(Duration.ofSeconds(5));
     stalled = new StalledEndpoint();
-    Map<String, String> hung = stalled.config("hung-client");
+    OAuth2ClientCredentials hung = stalled.credentials("hung-client");
     ExecutorService pool = Executors.newFixedThreadPool(2);
     try {
-      Future<String> blocked = pool.submit(() -> OAuth2TokenCache.getToken(hung));
-      Future<String> waiting = pool.submit(() -> OAuth2TokenCache.getToken(hung));
+      Future<String> blocked = pool.submit(() -> tokens.getToken(hung));
+      Future<String> waiting = pool.submit(() -> tokens.getToken(hung));
       assertThat(stalled.connections.tryAcquire(2, TimeUnit.SECONDS), is(true));
 
       // another realm's webhook, with its own token endpoint, is not held up by the hung one
       String token =
-          assertTimeoutPreemptively(Duration.ofSeconds(1), () -> OAuth2TokenCache.getToken(config));
+          assertTimeoutPreemptively(Duration.ofSeconds(1), () -> tokens.getToken(config));
       assertThat(token, is("tok-1"));
       assertThat(blocked.isDone(), is(false));
 
@@ -216,7 +206,7 @@ public class OAuth2TokenCacheTest {
             pool.submit(
                 () -> {
                   go.await();
-                  return OAuth2TokenCache.getToken(config);
+                  return tokens.getToken(config);
                 }));
       }
       go.countDown();

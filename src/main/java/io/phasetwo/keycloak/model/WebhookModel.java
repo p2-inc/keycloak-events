@@ -20,6 +20,18 @@ public interface WebhookModel {
    */
   String AUTH_TYPE_BEARER = "bearer";
 
+  /**
+   * Request headers from the webhook config: every {@code header.<Name>} entry is sent as header
+   * {@code <Name>}. Used for API-key style ingestion endpoints (e.g. {@code DD-API-KEY}).
+   */
+  String AUTH_TYPE_HEADERS = "headers";
+
+  /**
+   * A bearer token obtained with the OAuth2 client credentials grant from the {@code oauth2.*}
+   * webhook config, cached until shortly before it expires.
+   */
+  String AUTH_TYPE_OAUTH2 = "oauth2-client-credentials";
+
   /** Default JWS algorithm used when {@link #getAuthType()} is {@link #AUTH_TYPE_BEARER}. */
   String DEFAULT_BEARER_ALGORITHM = "RS256";
 
