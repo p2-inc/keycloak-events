@@ -11,33 +11,14 @@ import io.phasetwo.keycloak.representation.ExtendedAuthDetails;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.util.JsonSerialization;
 
 public class DatadogPayloadFormatterTest {
 
-  /**
-   * The match rule of Datadog's Keycloak log pipeline
-   * (integrations-core/keycloak/assets/logs/keycloak.yaml), as a Java regex: {@code
-   * %{data::keyvalue(...)} realmName="%{data:realmName}", clientId="%{data:clientId}",
-   * userId="%{notSpace:userId}", %{data::keyvalue(...)}}.
-   */
-  public static final Pattern DATADOG_GROK =
-      Pattern.compile(
-          "^(.*) realmName=\"(.*)\", clientId=\"(.*)\", userId=\"(\\S+)\", (.*)$", Pattern.DOTALL);
-
-  private static final Pattern KV = Pattern.compile("(\\w+)=\"((?:[^\"\\\\]|\\\\.)*)\"");
-
-  /** The key/value attributes Datadog's keyvalue filter extracts from a Keycloak event line. */
-  public static Map<String, String> keyValues(String message) {
-    Map<String, String> m = new LinkedHashMap<>();
-    Matcher matcher = KV.matcher(message);
-    while (matcher.find()) m.put(matcher.group(1), matcher.group(2));
-    return m;
-  }
+  final DatadogKeycloakPipeline pipeline = new DatadogKeycloakPipeline();
+  final DatadogPayloadFormatter formatter = new DatadogPayloadFormatter();
 
   /** Sample lines from Datadog's Keycloak pipeline tests (keycloak_tests.yaml). */
   static final String DD_SAMPLE_CODE_TO_TOKEN =
@@ -104,9 +85,9 @@ public class DatadogPayloadFormatterTest {
             null,
             details);
 
-    String message = DatadogPayloadFormatter.message(EventView.of(e));
-    assertThat(DATADOG_GROK.matcher(message).matches(), is(true));
-    assertThat(keyValues(message), is(keyValues(DD_SAMPLE_CODE_TO_TOKEN)));
+    String message = formatter.message(new EventView(e));
+    assertThat(pipeline.matches(message), is(true));
+    assertThat(pipeline.attributes(message), is(pipeline.attributes(DD_SAMPLE_CODE_TO_TOKEN)));
     // the fixed prefix is in Keycloak's order (details are a hash map, so their order may differ)
     assertThat(
         message.startsWith(
@@ -127,9 +108,9 @@ public class DatadogPayloadFormatterTest {
             null,
             "invalid_user_credentials",
             details);
-    String message = DatadogPayloadFormatter.message(EventView.of(e));
-    assertThat(DATADOG_GROK.matcher(message).matches(), is(true));
-    assertThat(keyValues(message), is(keyValues(DD_SAMPLE_LOGIN_ERROR)));
+    String message = formatter.message(new EventView(e));
+    assertThat(pipeline.matches(message), is(true));
+    assertThat(pipeline.attributes(message), is(pipeline.attributes(DD_SAMPLE_LOGIN_ERROR)));
   }
 
   @Test
@@ -148,9 +129,9 @@ public class DatadogPayloadFormatterTest {
     auth.setIpAddress("10.10.10.10");
     e.setAuthDetails(auth);
 
-    String message = DatadogPayloadFormatter.message(EventView.of(e));
+    String message = formatter.message(new EventView(e));
     assertThat(message, is(DD_SAMPLE_ADMIN));
-    assertThat(DATADOG_GROK.matcher(message).matches(), is(true));
+    assertThat(pipeline.matches(message), is(true));
   }
 
   @Test
@@ -162,10 +143,10 @@ public class DatadogPayloadFormatterTest {
             null,
             "user_not_found",
             Map.of("username", "evil\" injected=\"1\nnext"));
-    String message = DatadogPayloadFormatter.message(EventView.of(e));
+    String message = formatter.message(new EventView(e));
     assertThat(message.contains("userId=\"null\""), is(true));
     assertThat(message.contains("username=\"evil\\\" injected=\\\"1 next\""), is(true));
-    assertThat(DATADOG_GROK.matcher(message).matches(), is(true));
+    assertThat(pipeline.matches(message), is(true));
   }
 
   @Test
@@ -203,7 +184,7 @@ public class DatadogPayloadFormatterTest {
   @Test
   public void testDefaultsAndNoTags() throws Exception {
     ExtendedAdminEvent e = userEvent("LOGIN", "u-1", "s-1", null, Map.of());
-    Map<String, Object> entry = DatadogPayloadFormatter.entry(EventView.of(e), Map.of());
+    Map<String, Object> entry = formatter.entry(new EventView(e), Map.of());
     assertThat(entry, not(hasKey("ddtags")));
     assertThat(entry.get("status"), is("info"));
     assertThat(((Map<?, ?>) entry.get("evt")).get("outcome"), is("success"));
@@ -229,8 +210,8 @@ public class DatadogPayloadFormatterTest {
     e.setAuthDetails(auth);
     e.setDetails(Map.of("userId", "target-id", "username", "target"));
 
-    String message = DatadogPayloadFormatter.message(EventView.of(e));
-    Map<String, String> kv = keyValues(message);
+    String message = formatter.message(new EventView(e));
+    Map<String, String> kv = pipeline.attributes(message);
     assertThat(kv.get("userId"), is("admin-id"));
     assertThat(kv.get("resourceUserId"), is("target-id"));
     assertThat(kv.get("resourceUsername"), is("target"));
@@ -241,7 +222,7 @@ public class DatadogPayloadFormatterTest {
   @Test
   public void testUserEventDetailCollidingWithFixedKeyIsPrefixed() {
     ExtendedAdminEvent e = userEvent("LOGIN", "u-1", "s-1", null, Map.of("clientId", "other"));
-    Map<String, String> kv = keyValues(DatadogPayloadFormatter.message(EventView.of(e)));
+    Map<String, String> kv = pipeline.attributes(formatter.message(new EventView(e)));
     assertThat(kv.get("clientId"), is("security-admin-console"));
     assertThat(kv.get("detail_clientId"), is("other"));
   }

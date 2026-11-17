@@ -4,8 +4,6 @@ import static io.phasetwo.keycloak.Helpers.addEventListener;
 import static io.phasetwo.keycloak.Helpers.createUser;
 import static io.phasetwo.keycloak.Helpers.removeEventListener;
 import static io.phasetwo.keycloak.Helpers.urlencode;
-import static io.phasetwo.keycloak.events.format.DatadogPayloadFormatterTest.DATADOG_GROK;
-import static io.phasetwo.keycloak.events.format.DatadogPayloadFormatterTest.keyValues;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -16,6 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.phasetwo.keycloak.RecordingServer;
 import io.phasetwo.keycloak.RecordingServer.Captured;
 import io.phasetwo.keycloak.RecordingServer.Reply;
+import io.phasetwo.keycloak.events.format.DatadogKeycloakPipeline;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import java.time.Duration;
 import java.util.List;
@@ -37,6 +36,8 @@ import org.keycloak.util.JsonSerialization;
 public class DatadogFormatIntegrationTest extends AbstractResourceTest {
 
   static final Duration WAIT = Duration.ofSeconds(20);
+
+  final DatadogKeycloakPipeline pipeline = new DatadogKeycloakPipeline();
   static final String INTAKE_PATH = "/api/v2/logs";
   static final String API_KEY = "0123456789abcdef0123456789abcdef";
 
@@ -109,8 +110,8 @@ public class DatadogFormatIntegrationTest extends AbstractResourceTest {
       assertThat(entry.get("loggerName"), is("org.keycloak.events"));
       assertThat(entry.get("hostname"), notNullValue());
       String message = (String) entry.get("message");
-      assertThat(DATADOG_GROK.matcher(message).matches(), is(true));
-      Map<String, String> kv = keyValues(message);
+      assertThat(pipeline.matches(message), is(true));
+      Map<String, String> kv = pipeline.attributes(message);
       assertThat(kv.get("type"), is("LOGIN"));
       assertThat(kv.get("realmName"), is("master"));
       assertThat(kv.get("clientId"), is(ADMIN_CLI));
@@ -144,8 +145,8 @@ public class DatadogFormatIntegrationTest extends AbstractResourceTest {
       assertThat(error.get("status"), is("warn"));
       assertThat(((Map<?, ?>) error.get("evt")).get("outcome"), is("failure"));
       String errorMessage = (String) error.get("message");
-      assertThat(DATADOG_GROK.matcher(errorMessage).matches(), is(true));
-      assertThat(keyValues(errorMessage).get("error"), is("invalid_user_credentials"));
+      assertThat(pipeline.matches(errorMessage), is(true));
+      assertThat(pipeline.attributes(errorMessage).get("error"), is("invalid_user_credentials"));
 
       // an admin event
       createUser(keycloak, "master", "datadog-user");
@@ -154,8 +155,8 @@ public class DatadogFormatIntegrationTest extends AbstractResourceTest {
       log.infof("datadog admin request body: %s", admin.bodyAsString());
       Map<String, Object> adminEntry = single(admin);
       String adminMessage = (String) adminEntry.get("message");
-      assertThat(DATADOG_GROK.matcher(adminMessage).matches(), is(true));
-      Map<String, String> akv = keyValues(adminMessage);
+      assertThat(pipeline.matches(adminMessage), is(true));
+      Map<String, String> akv = pipeline.attributes(adminMessage);
       assertThat(akv.get("operationType"), is("CREATE"));
       assertThat(akv.get("resourceType"), is("USER"));
       assertThat(akv.get("type"), nullValue());

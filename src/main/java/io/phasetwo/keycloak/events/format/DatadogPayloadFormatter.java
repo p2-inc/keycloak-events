@@ -1,6 +1,5 @@
 package io.phasetwo.keycloak.events.format;
 
-import com.google.auto.service.AutoService;
 import com.google.common.base.Strings;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import java.io.IOException;
@@ -10,9 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.provider.ProviderConfigurationBuilder;
 import org.keycloak.util.JsonSerialization;
 import org.keycloak.utils.StringUtil;
 
@@ -29,8 +25,6 @@ import org.keycloak.utils.StringUtil;
  * {@code keycloak}, so detections don't depend on the message being parsed.
  */
 public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
-
-  public static final String ID = "datadog";
 
   /** The logger whose output Datadog's Keycloak pipeline classifies as user and admin events. */
   static final String EVENTS_LOGGER = "org.keycloak.events";
@@ -51,11 +45,14 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
 
   private static final char QUOTE = '"';
 
+  /** The hostname attribute when none is configured: this Keycloak node's hostname. */
+  private final String defaultHostname = localHostname();
+
   @Override
   public FormattedPayload format(List<ExtendedAdminEvent> events, Map<String, String> config)
       throws IOException {
     List<Map<String, Object>> entries = new ArrayList<>(events.size());
-    for (ExtendedAdminEvent e : events) entries.add(entry(EventView.of(e), config));
+    for (ExtendedAdminEvent e : events) entries.add(entry(new EventView(e), config));
     return FormattedPayload.json(JsonSerialization.writeValueAsString(entries));
   }
 
@@ -69,11 +66,11 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
     return !NON_RETRYABLE.contains(httpStatus);
   }
 
-  static Map<String, Object> entry(EventView v, Map<String, String> config) {
+  Map<String, Object> entry(EventView v, Map<String, String> config) {
     Map<String, Object> m = new LinkedHashMap<>();
     m.put("ddsource", configOr(config, CONFIG_SOURCE, DEFAULT_SOURCE));
     m.put("service", configOr(config, CONFIG_SERVICE, DEFAULT_SERVICE));
-    m.put("hostname", configOr(config, CONFIG_HOSTNAME, defaultHostname()));
+    m.put("hostname", configOr(config, CONFIG_HOSTNAME, defaultHostname));
     String tags = config.get(CONFIG_TAGS);
     if (!Strings.isNullOrEmpty(tags)) m.put("ddtags", tags);
     m.put("message", message(v));
@@ -123,7 +120,7 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
    * The line Keycloak's {@code JBossLoggingEventListenerProvider} logs for the event, with its
    * default quoting and sanitizing. Datadog's Keycloak pipeline grok-parses this format.
    */
-  static String message(EventView v) {
+  String message(EventView v) {
     StringBuilder sb = new StringBuilder();
     if (v.isAdminEvent()) {
       sb.append("operationType=");
@@ -195,7 +192,7 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
    * they become {@code resourceUserId}/{@code resourceUsername}. Any other detail that collides
    * with a fixed key gets a {@code detail_} prefix.
    */
-  static String detailKey(EventView v, String key) {
+  String detailKey(EventView v, String key) {
     if (v.isAdminEvent()) {
       if ("userId".equals(key)) return "resourceUserId";
       if ("username".equals(key)) return "resourceUsername";
@@ -204,12 +201,12 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
     return LINE_KEYS.contains(key) ? "detail_" + key : key;
   }
 
-  private static void quoted(StringBuilder sb, String value) {
+  private void quoted(StringBuilder sb, String value) {
     sb.append(QUOTE).append(StringUtil.sanitizeSpacesAndQuotes(value, QUOTE)).append(QUOTE);
   }
 
   /** Datadog's {@code evt.category} for the events Cloud SIEM's authentication rules look at. */
-  static String eventCategory(EventView v) {
+  String eventCategory(EventView v) {
     if (!v.isUserEvent()) return v.isAdminEvent() ? "admin" : null;
     String t = v.nativeType();
     if (t.startsWith("LOGIN")
@@ -224,77 +221,22 @@ public class DatadogPayloadFormatter implements WebhookPayloadFormatter {
     return null;
   }
 
-  private static void putIfNotNull(Map<String, Object> m, String k, Object v) {
+  private void putIfNotNull(Map<String, Object> m, String k, Object v) {
     if (v != null) m.put(k, v);
   }
 
-  private static String configOr(Map<String, String> config, String key, String def) {
+  private String configOr(Map<String, String> config, String key, String def) {
     String v = config.get(key);
     return Strings.isNullOrEmpty(v) ? def : v;
   }
 
-  private static String defaultHostname() {
+  private String localHostname() {
     String h = System.getenv("HOSTNAME");
     if (!Strings.isNullOrEmpty(h)) return h;
     try {
       return InetAddress.getLocalHost().getHostName();
     } catch (Exception e) {
       return "keycloak";
-    }
-  }
-
-  @AutoService(WebhookPayloadFormatterFactory.class)
-  public static class Factory implements WebhookPayloadFormatterFactory {
-
-    @Override
-    public WebhookPayloadFormatter create(KeycloakSession session) {
-      return new DatadogPayloadFormatter();
-    }
-
-    @Override
-    public String getId() {
-      return ID;
-    }
-
-    @Override
-    public String getHelpText() {
-      return "Datadog Logs intake (POST https://http-intake.logs.<site>/api/v2/logs). Use authType"
-          + " 'headers' with config header.DD-API-KEY. Entries use ddsource=keycloak and"
-          + " Keycloak's native event log line, so Datadog's Keycloak pipeline and Cloud SIEM"
-          + " content pack apply.";
-    }
-
-    @Override
-    public List<ProviderConfigProperty> getConfigProperties() {
-      return ProviderConfigurationBuilder.create()
-          .property()
-          .name(CONFIG_SERVICE)
-          .label("Service")
-          .helpText("The Datadog service attribute.")
-          .type(ProviderConfigProperty.STRING_TYPE)
-          .defaultValue(DEFAULT_SERVICE)
-          .add()
-          .property()
-          .name(CONFIG_SOURCE)
-          .label("Source")
-          .helpText(
-              "The ddsource attribute. Keep 'keycloak' to use Datadog's Keycloak integration.")
-          .type(ProviderConfigProperty.STRING_TYPE)
-          .defaultValue(DEFAULT_SOURCE)
-          .add()
-          .property()
-          .name(CONFIG_HOSTNAME)
-          .label("Hostname")
-          .helpText("The hostname attribute. Defaults to this Keycloak node's hostname.")
-          .type(ProviderConfigProperty.STRING_TYPE)
-          .add()
-          .property()
-          .name(CONFIG_TAGS)
-          .label("Tags")
-          .helpText("Comma separated ddtags, e.g. env:prod,team:iam.")
-          .type(ProviderConfigProperty.STRING_TYPE)
-          .add()
-          .build();
     }
   }
 }
