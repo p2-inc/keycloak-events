@@ -6,6 +6,7 @@ By default a webhook posts the keycloak-events JSON representation of each event
 | --- | --- | --- |
 | `default` | Any receiver of the keycloak-events JSON payload | This page |
 | `azure-sentinel` | Microsoft Sentinel, through the Azure Monitor Logs Ingestion API | [Microsoft Sentinel](payload-formats/azure-sentinel.md) |
+| `google-secops` | Google Security Operations, through a webhook feed with the Keycloak log type | [Google SecOps](payload-formats/google-secops.md) |
 
 Formats are pluggable: other extensions can add their own (see [Writing your own format](#writing-your-own-format)). `GET /auth/realms/:realm/webhooks/formats` lists the formats installed on a server.
 
