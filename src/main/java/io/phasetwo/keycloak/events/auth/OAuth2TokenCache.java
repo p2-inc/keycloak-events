@@ -10,10 +10,16 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.jbosslog.JBossLog;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
@@ -29,7 +35,12 @@ public final class OAuth2TokenCache {
   static final long EXPIRY_SKEW_SECONDS = 60;
   static final long DEFAULT_EXPIRES_IN_SECONDS = 300;
 
+  /** Connect, connection-pool and read timeout for token requests. Settable for tests. */
+  static volatile Duration timeout = Duration.ofSeconds(10);
+
   private static final Map<String, CachedToken> CACHE = new ConcurrentHashMap<>();
+  private static final Map<String, CompletableFuture<CachedToken>> IN_FLIGHT =
+      new ConcurrentHashMap<>();
 
   private record CachedToken(String accessToken, long expiresAtMillis) {
     boolean valid() {
@@ -39,17 +50,53 @@ public final class OAuth2TokenCache {
 
   private OAuth2TokenCache() {}
 
-  /** Return a valid access token for the webhook config, fetching a new one if needed. */
+  /**
+   * Return a valid access token for the webhook config, fetching a new one if needed.
+   *
+   * <p>Concurrent callers for the same credentials share one in-flight fetch; callers for other
+   * credentials (other webhooks, other realms) never wait on it. The fetch itself is bounded by
+   * {@link #timeout}, and so is the wait on another caller's fetch, so a stalled token endpoint
+   * holds up only the sends that need its token, and only for a bounded time.
+   */
   public static String getToken(Map<String, String> config) throws IOException {
     String key = cacheKey(config);
     CachedToken cached = CACHE.get(key);
     if (cached != null && cached.valid()) return cached.accessToken();
-    synchronized (OAuth2TokenCache.class) {
+
+    CompletableFuture<CachedToken> mine = new CompletableFuture<>();
+    CompletableFuture<CachedToken> inFlight = IN_FLIGHT.putIfAbsent(key, mine);
+    if (inFlight != null) return await(inFlight, config);
+    try {
+      // another caller may have stored a token between the cache check and claiming the fetch
       cached = CACHE.get(key);
-      if (cached != null && cached.valid()) return cached.accessToken();
-      CachedToken fresh = fetch(config);
-      CACHE.put(key, fresh);
-      return fresh.accessToken();
+      CachedToken token = cached != null && cached.valid() ? cached : fetch(config);
+      CACHE.put(key, token);
+      mine.complete(token);
+      return token.accessToken();
+    } catch (IOException | RuntimeException e) {
+      mine.completeExceptionally(e);
+      throw e;
+    } finally {
+      IN_FLIGHT.remove(key, mine);
+    }
+  }
+
+  private static String await(CompletableFuture<CachedToken> inFlight, Map<String, String> config)
+      throws IOException {
+    String tokenUrl = config.get(OAUTH2_TOKEN_URL);
+    try {
+      // the fetch is bounded by connect + pool + read timeouts; allow for all three
+      return inFlight.get(timeout.toMillis() * 3, TimeUnit.MILLISECONDS).accessToken();
+    } catch (TimeoutException e) {
+      throw new IOException(String.format("timed out waiting for a token from %s", tokenUrl), e);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof IOException io) throw io;
+      throw new IOException(
+          String.format("token request to %s failed: %s", tokenUrl, cause), cause);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("interrupted waiting for a token from " + tokenUrl, e);
     }
   }
 
@@ -60,11 +107,20 @@ public final class OAuth2TokenCache {
 
   static void clear() {
     CACHE.clear();
+    IN_FLIGHT.clear();
   }
 
   private static CachedToken fetch(Map<String, String> config) throws IOException {
     String tokenUrl = config.get(OAUTH2_TOKEN_URL);
-    try (CloseableHttpClient http = HttpClients.createDefault()) {
+    int millis = (int) timeout.toMillis();
+    RequestConfig requestConfig =
+        RequestConfig.custom()
+            .setConnectTimeout(millis)
+            .setConnectionRequestTimeout(millis)
+            .setSocketTimeout(millis)
+            .build();
+    try (CloseableHttpClient http =
+        HttpClients.custom().setDefaultRequestConfig(requestConfig).build()) {
       LegacySimpleHttp request =
           LegacySimpleHttp.doPost(tokenUrl, http)
               .param("grant_type", "client_credentials")
