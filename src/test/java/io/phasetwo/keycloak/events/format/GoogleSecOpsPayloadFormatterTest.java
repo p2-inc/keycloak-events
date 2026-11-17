@@ -95,7 +95,9 @@ public class GoogleSecOpsPayloadFormatterTest {
     e.setDetails(Map.of("username", "typed-name"));
     Map<?, ?> p =
         (Map<?, ?>)
-            GoogleSecOpsPayloadFormatter.record(EventView.of(e), Instant.now()).get("payload");
+            new GoogleSecOpsPayloadFormatter()
+                .record(new EventView(e), Instant.now())
+                .get("payload");
     assertThat((String) p.get("details_json"), is("{\"username\":\"typed-name\"}"));
   }
 

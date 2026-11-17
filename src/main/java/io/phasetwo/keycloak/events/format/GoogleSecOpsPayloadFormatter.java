@@ -1,6 +1,5 @@
 package io.phasetwo.keycloak.events.format;
 
-import com.google.auto.service.AutoService;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import java.io.IOException;
 import java.time.Instant;
@@ -10,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.util.JsonSerialization;
 
 /**
@@ -30,8 +28,6 @@ import org.keycloak.util.JsonSerialization;
  */
 public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
 
-  public static final String ID = "google-secops";
-
   static final String READ_METHOD = "keycloak-events-webhook";
   static final String SCHEMA = "keycloak";
   static final String USER_EVENT_TABLE = "event_entity";
@@ -50,7 +46,7 @@ public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
       throw new IllegalArgumentException("google-secops sends one event per request");
     }
     return FormattedPayload.json(
-        JsonSerialization.writeValueAsString(record(EventView.of(events.get(0)), Instant.now())));
+        JsonSerialization.writeValueAsString(record(new EventView(events.get(0)), Instant.now())));
   }
 
   @Override
@@ -58,7 +54,7 @@ public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
     return !NON_RETRYABLE.contains(httpStatus);
   }
 
-  static Map<String, Object> record(EventView v, Instant readAt) throws IOException {
+  Map<String, Object> record(EventView v, Instant readAt) throws IOException {
     String table = v.isAdminEvent() ? ADMIN_EVENT_TABLE : USER_EVENT_TABLE;
     Map<String, Object> r = new LinkedHashMap<>();
     r.put("uuid", v.uid() != null && !v.uid().isEmpty() ? v.uid() : v.id());
@@ -79,7 +75,7 @@ public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
   }
 
   /** A row of Keycloak's EVENT_ENTITY table. */
-  static Map<String, Object> userRow(EventView v) throws IOException {
+  Map<String, Object> userRow(EventView v) throws IOException {
     Map<String, Object> p = new LinkedHashMap<>();
     p.put("id", v.id());
     p.put("type", v.nativeType());
@@ -103,7 +99,7 @@ public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
    * A row of Keycloak's ADMIN_EVENT_ENTITY table, plus a {@code type} of {@code
    * <RESOURCE>-<OPERATION>} (e.g. {@code USER-CREATE}) so the parser records a product event type.
    */
-  static Map<String, Object> adminRow(EventView v) throws IOException {
+  Map<String, Object> adminRow(EventView v) throws IOException {
     Map<String, Object> p = new LinkedHashMap<>();
     p.put("id", v.id());
     p.put("type", adminType(v));
@@ -122,33 +118,12 @@ public class GoogleSecOpsPayloadFormatter implements WebhookPayloadFormatter {
     return p;
   }
 
-  static String adminType(EventView v) {
+  String adminType(EventView v) {
     String t = v.type();
     return t.startsWith(EventView.ADMIN_PREFIX) ? t.substring(EventView.ADMIN_PREFIX.length()) : t;
   }
 
-  static String iso(Instant i) {
+  String iso(Instant i) {
     return DateTimeFormatter.ISO_INSTANT.format(i.truncatedTo(ChronoUnit.MILLIS));
-  }
-
-  @AutoService(WebhookPayloadFormatterFactory.class)
-  public static class Factory implements WebhookPayloadFormatterFactory {
-
-    @Override
-    public WebhookPayloadFormatter create(KeycloakSession session) {
-      return new GoogleSecOpsPayloadFormatter();
-    }
-
-    @Override
-    public String getId() {
-      return ID;
-    }
-
-    @Override
-    public String getHelpText() {
-      return "Google SecOps webhook feed with log type KEYCLOAK (POST to the feed's"
-          + " ...:importPushLogs endpoint). Use authType 'headers' with config"
-          + " header.x-goog-chronicle-auth (API key) and header.x-chronicle-auth (feed secret).";
-    }
   }
 }
