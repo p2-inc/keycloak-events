@@ -1,17 +1,9 @@
 package io.phasetwo.keycloak.events.auth;
 
-import static io.phasetwo.keycloak.events.auth.WebhookAuthConfig.OAUTH2_CLIENT_ID;
-import static io.phasetwo.keycloak.events.auth.WebhookAuthConfig.OAUTH2_CLIENT_SECRET;
-import static io.phasetwo.keycloak.events.auth.WebhookAuthConfig.OAUTH2_SCOPE;
-import static io.phasetwo.keycloak.events.auth.WebhookAuthConfig.OAUTH2_TOKEN_URL;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Strings;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,21 +17,27 @@ import org.apache.http.impl.client.HttpClients;
 import org.keycloak.broker.provider.util.LegacySimpleHttp;
 
 /**
- * Obtains and caches OAuth2 client-credentials access tokens for webhook delivery (e.g. Microsoft
- * Entra tokens for the Azure Monitor Logs Ingestion API). Tokens are cached per token endpoint,
- * client, secret and scope, and refreshed {@link #EXPIRY_SKEW_SECONDS} before they expire.
+ * Obtains and caches OAuth2 client credentials access tokens for webhook delivery (e.g. Microsoft
+ * Entra tokens for the Azure Monitor Logs Ingestion API). Tokens are cached per {@link
+ * OAuth2ClientCredentials} and refreshed {@link #EXPIRY_SKEW_SECONDS} before they expire.
+ *
+ * <p>Concurrent callers for the same credentials share one in-flight fetch; callers for other
+ * credentials (other webhooks, other realms) never wait on it. The fetch is bounded by the
+ * configured timeout, and so is the wait on another caller's fetch, so a stalled token endpoint
+ * holds up only the sends that need its token, and only for a bounded time.
+ *
+ * <p>Uses its own HTTP client rather than Keycloak's {@code HttpClientProvider}: fetches run on the
+ * sender's background threads, and Keycloak's client has no timeouts by default.
  */
 @JBossLog
-public final class OAuth2TokenCache {
+public class OAuth2TokenCache {
 
   static final long EXPIRY_SKEW_SECONDS = 60;
   static final long DEFAULT_EXPIRES_IN_SECONDS = 300;
 
-  /** Connect, connection-pool and read timeout for token requests. Settable for tests. */
-  static volatile Duration timeout = Duration.ofSeconds(10);
-
-  private static final Map<String, CachedToken> CACHE = new ConcurrentHashMap<>();
-  private static final Map<String, CompletableFuture<CachedToken>> IN_FLIGHT =
+  private final Duration timeout;
+  private final Map<OAuth2ClientCredentials, CachedToken> cache = new ConcurrentHashMap<>();
+  private final Map<OAuth2ClientCredentials, CompletableFuture<CachedToken>> inFlight =
       new ConcurrentHashMap<>();
 
   private record CachedToken(String accessToken, long expiresAtMillis) {
@@ -48,45 +46,48 @@ public final class OAuth2TokenCache {
     }
   }
 
-  private OAuth2TokenCache() {}
+  /**
+   * @param timeout the connect, connection-pool and read timeout for token requests
+   */
+  public OAuth2TokenCache(Duration timeout) {
+    this.timeout = timeout;
+  }
 
   /**
-   * Return a valid access token for the webhook config, fetching a new one if needed.
+   * A valid access token for the credentials, fetching a new one if needed.
    *
-   * <p>Concurrent callers for the same credentials share one in-flight fetch; callers for other
-   * credentials (other webhooks, other realms) never wait on it. The fetch itself is bounded by
-   * {@link #timeout}, and so is the wait on another caller's fetch, so a stalled token endpoint
-   * holds up only the sends that need its token, and only for a bounded time.
+   * @param credentials the client credentials
+   * @return the access token
+   * @throws IOException if no token could be obtained in time
    */
-  public static String getToken(Map<String, String> config) throws IOException {
-    String key = cacheKey(config);
-    CachedToken cached = CACHE.get(key);
+  public String getToken(OAuth2ClientCredentials credentials) throws IOException {
+    CachedToken cached = cache.get(credentials);
     if (cached != null && cached.valid()) return cached.accessToken();
 
     CompletableFuture<CachedToken> mine = new CompletableFuture<>();
-    CompletableFuture<CachedToken> inFlight = IN_FLIGHT.putIfAbsent(key, mine);
-    if (inFlight != null) return await(inFlight, config);
+    CompletableFuture<CachedToken> other = inFlight.putIfAbsent(credentials, mine);
+    if (other != null) return await(other, credentials);
     try {
       // another caller may have stored a token between the cache check and claiming the fetch
-      cached = CACHE.get(key);
-      CachedToken token = cached != null && cached.valid() ? cached : fetch(config);
-      CACHE.put(key, token);
+      cached = cache.get(credentials);
+      CachedToken token = cached != null && cached.valid() ? cached : fetch(credentials);
+      cache.put(credentials, token);
       mine.complete(token);
       return token.accessToken();
     } catch (IOException | RuntimeException e) {
       mine.completeExceptionally(e);
       throw e;
     } finally {
-      IN_FLIGHT.remove(key, mine);
+      inFlight.remove(credentials, mine);
     }
   }
 
-  private static String await(CompletableFuture<CachedToken> inFlight, Map<String, String> config)
+  private String await(CompletableFuture<CachedToken> fetch, OAuth2ClientCredentials credentials)
       throws IOException {
-    String tokenUrl = config.get(OAUTH2_TOKEN_URL);
+    String tokenUrl = credentials.tokenUrl();
     try {
       // the fetch is bounded by connect + pool + read timeouts; allow for all three
-      return inFlight.get(timeout.toMillis() * 3, TimeUnit.MILLISECONDS).accessToken();
+      return fetch.get(timeout.toMillis() * 3, TimeUnit.MILLISECONDS).accessToken();
     } catch (TimeoutException e) {
       throw new IOException(String.format("timed out waiting for a token from %s", tokenUrl), e);
     } catch (ExecutionException e) {
@@ -100,18 +101,22 @@ public final class OAuth2TokenCache {
     }
   }
 
-  /** Drop the cached token, e.g. after the receiver rejected it with a 401. */
-  public static void invalidate(Map<String, String> config) {
-    CACHE.remove(cacheKey(config));
+  /**
+   * Drop the cached token, e.g. after the receiver rejected it with a 401.
+   *
+   * @param credentials the client credentials
+   */
+  public void invalidate(OAuth2ClientCredentials credentials) {
+    cache.remove(credentials);
   }
 
-  static void clear() {
-    CACHE.clear();
-    IN_FLIGHT.clear();
+  /** Drop every cached token. */
+  public void clear() {
+    cache.clear();
   }
 
-  private static CachedToken fetch(Map<String, String> config) throws IOException {
-    String tokenUrl = config.get(OAUTH2_TOKEN_URL);
+  private CachedToken fetch(OAuth2ClientCredentials credentials) throws IOException {
+    String tokenUrl = credentials.tokenUrl();
     int millis = (int) timeout.toMillis();
     RequestConfig requestConfig =
         RequestConfig.custom()
@@ -124,10 +129,9 @@ public final class OAuth2TokenCache {
       LegacySimpleHttp request =
           LegacySimpleHttp.doPost(tokenUrl, http)
               .param("grant_type", "client_credentials")
-              .param("client_id", config.get(OAUTH2_CLIENT_ID))
-              .param("client_secret", config.get(OAUTH2_CLIENT_SECRET));
-      String scope = config.get(OAUTH2_SCOPE);
-      if (!Strings.isNullOrEmpty(scope)) request.param("scope", scope);
+              .param("client_id", credentials.clientId())
+              .param("client_secret", credentials.clientSecret());
+      if (!Strings.isNullOrEmpty(credentials.scope())) request.param("scope", credentials.scope());
       try (LegacySimpleHttp.Response response = request.asResponse()) {
         int status = response.getStatus();
         if (status < 200 || status >= 300) {
@@ -148,26 +152,5 @@ public final class OAuth2TokenCache {
         return new CachedToken(token.asText(), System.currentTimeMillis() + ttl * 1000);
       }
     }
-  }
-
-  private static String cacheKey(Map<String, String> config) {
-    String raw =
-        String.join(
-            "\n",
-            nz(config.get(OAUTH2_TOKEN_URL)),
-            nz(config.get(OAUTH2_CLIENT_ID)),
-            nz(config.get(OAUTH2_CLIENT_SECRET)),
-            nz(config.get(OAUTH2_SCOPE)));
-    try {
-      return HexFormat.of()
-          .formatHex(
-              MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8)));
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  private static String nz(String s) {
-    return s == null ? "" : s;
   }
 }

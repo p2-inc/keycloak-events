@@ -5,10 +5,11 @@ import static java.net.HttpURLConnection.HTTP_OK;
 
 import com.github.xgp.util.BackOff;
 import com.github.xgp.util.ExponentialBackOff;
+import io.phasetwo.keycloak.events.auth.HmacSigner;
 import io.phasetwo.keycloak.events.format.DefaultPayloadFormatter;
 import io.phasetwo.keycloak.events.format.FormattedPayload;
+import io.phasetwo.keycloak.events.format.PayloadFormats;
 import io.phasetwo.keycloak.events.format.WebhookPayloadFormatter;
-import io.phasetwo.keycloak.events.format.WebhookPayloadFormatters;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,8 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.jbosslog.JBossLog;
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ByteArrayEntity;
@@ -47,6 +46,9 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected static final String BACKOFF_MAX_INTERVAL = "backoffMaxInterval";
   protected static final String BACKOFF_MULTIPLIER = "backoffMultiplier";
   protected static final String BACKOFF_RANDOMIZATION_FACTOR = "backoffRandomizationFactor";
+
+  /** Serializes events for tasks scheduled without a formatter. */
+  private final DefaultPayloadFormatter defaultFormatter = new DefaultPayloadFormatter();
 
   public HttpSenderEventListenerProvider(KeycloakSession session, ScheduledExecutorService exec) {
     super(session, exec);
@@ -116,7 +118,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       RealmModel realm = session.realms().getRealm(event.getRealmId());
       scheduleFormatted(new ExtendedAdminEvent(KeycloakModelUtils.generateId(), event, realm));
     } catch (Exception e) {
-      log.warn("Error formatting event: " + event, e);
+      log.warnf(e, "Error formatting event %s", event.getId());
     }
   }
 
@@ -135,17 +137,18 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
       scheduleFormatted(
           new ExtendedAdminEvent(KeycloakModelUtils.generateId(), event, realm, authRealm));
     } catch (Exception e) {
-      log.warn("Error formatting admin event: " + event, e);
+      log.warnf(e, "Error formatting admin event %s", event.getId());
     }
   }
 
   private void scheduleFormatted(ExtendedAdminEvent event) throws IOException {
     String formatId = getFormat().get();
-    WebhookPayloadFormatter formatter = WebhookPayloadFormatters.resolve(session, formatId);
-    if (formatter == null) {
+    Optional<WebhookPayloadFormatter> resolved = new PayloadFormats(session).formatter(formatId);
+    if (resolved.isEmpty()) {
       log.warnf("Unknown payload format %s. Event %s not sent.", formatId, event.getId());
       return;
     }
+    WebhookPayloadFormatter formatter = resolved.get();
     SenderTask task = new SenderTask(event, getBackOff());
     Map<String, String> formatConfig = getStringMap(FORMAT_CONFIG);
     task.setFormatter(formatter);
@@ -194,7 +197,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   protected FormattedPayload payloadFor(SenderTask task) {
     if (task.getPayload() == null) {
       try {
-        task.setPayload(DefaultPayloadFormatter.formatObject(task.getEvent()));
+        task.setPayload(defaultFormatter.formatEvent(task.getEvent()));
       } catch (IOException e) {
         throw new UncheckedIOException("Unable to serialize webhook payload", e);
       }
@@ -253,7 +256,7 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
 
   protected String hmacFor(FormattedPayload payload, String sharedSecret, String algorithm) {
     try {
-      return calculateHmacSha(payload.body(), sharedSecret, algorithm);
+      return new HmacSigner(algorithm, sharedSecret).sign(payload.body());
     } catch (Exception e) {
       log.warn("Unable to sign data", e);
     }
@@ -263,32 +266,19 @@ public class HttpSenderEventListenerProvider extends SenderEventListenerProvider
   private static final String HMAC_SHA1_ALGORITHM = "HmacSHA1";
   protected static final String HMAC_SHA256_ALGORITHM = "HmacSHA256";
 
+  /**
+   * The hex HMAC of a string's UTF-8 bytes.
+   *
+   * @param data the data to sign
+   * @param key the shared secret
+   * @param algorithm a {@link javax.crypto.Mac} algorithm, e.g. {@code HmacSHA256}
+   * @return the signature as lowercase hex
+   * @throws SignatureException if signing fails
+   * @deprecated use {@link HmacSigner}, which signs the exact payload bytes
+   */
+  @Deprecated
   public static String calculateHmacSha(String data, String key, String algorithm)
       throws SignatureException {
-    return calculateHmacSha(data.getBytes(StandardCharsets.UTF_8), key, algorithm);
-  }
-
-  public static String calculateHmacSha(byte[] data, String key, String algorithm)
-      throws SignatureException {
-    String result = null;
-    try {
-      SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), algorithm);
-      Mac mac = Mac.getInstance(algorithm);
-      mac.init(signingKey);
-      byte[] digest = mac.doFinal(data);
-      StringBuilder sb = new StringBuilder(digest.length * 2);
-      String s;
-      for (byte b : digest) {
-        s = Integer.toHexString(0xFF & b);
-        if (s.length() == 1) {
-          sb.append('0');
-        }
-        sb.append(s);
-      }
-      result = sb.toString();
-    } catch (Exception e) {
-      throw new SignatureException("Failed to generate HMAC : " + e.getMessage());
-    }
-    return result;
+    return new HmacSigner(algorithm, key).sign(data.getBytes(StandardCharsets.UTF_8));
   }
 }

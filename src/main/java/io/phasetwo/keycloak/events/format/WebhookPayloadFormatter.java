@@ -1,5 +1,6 @@
 package io.phasetwo.keycloak.events.format;
 
+import io.phasetwo.keycloak.PublicAPI;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
 import java.io.IOException;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.keycloak.provider.Provider;
  * send task and consulted (e.g. {@link #isRetryable(int)}) on a background thread after the session
  * that created it has closed.
  */
+@PublicAPI(unstable = true)
 public interface WebhookPayloadFormatter extends Provider {
 
   /**

@@ -1,9 +1,9 @@
 package io.phasetwo.keycloak.resources;
 
+import io.phasetwo.keycloak.events.WebhookConfig;
 import io.phasetwo.keycloak.events.WebhookSenderEventListenerProvider;
-import io.phasetwo.keycloak.events.auth.WebhookAuthConfig;
+import io.phasetwo.keycloak.events.format.PayloadFormats;
 import io.phasetwo.keycloak.events.format.WebhookPayloadFormatterFactory;
-import io.phasetwo.keycloak.events.format.WebhookPayloadFormatters;
 import io.phasetwo.keycloak.model.KeycloakEventType;
 import io.phasetwo.keycloak.model.WebhookEventModel;
 import io.phasetwo.keycloak.model.WebhookModel;
@@ -11,6 +11,7 @@ import io.phasetwo.keycloak.model.WebhookProvider;
 import io.phasetwo.keycloak.model.WebhookSendModel;
 import io.phasetwo.keycloak.representation.Credential;
 import io.phasetwo.keycloak.representation.ExtendedAdminEvent;
+import io.phasetwo.keycloak.representation.PayloadFormatRepresentation;
 import io.phasetwo.keycloak.representation.WebhookRepresentation;
 import io.phasetwo.keycloak.representation.WebhookSend;
 import jakarta.ws.rs.BadRequestException;
@@ -29,10 +30,6 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.events.EventListenerProvider;
@@ -92,17 +89,10 @@ public class WebhooksResource extends AbstractAdminResource {
     webhook.setAudience(w.getAudience());
     webhook.setPayloadFormat(w.getPayloadFormat());
     // no secret, and secret config values are masked
-    Map<String, String> config = new TreeMap<>();
-    w.getConfig()
-        .forEach(
-            (k, v) ->
-                config.put(
-                    k,
-                    WebhookPayloadFormatters.isSecretKey(
-                            session.getKeycloakSessionFactory(), w.getPayloadFormat(), k)
-                        ? WebhookPayloadFormatters.SECRET_MASK
-                        : v));
-    webhook.setConfig(config);
+    PayloadFormats formats = new PayloadFormats(session);
+    webhook.setConfig(
+        new WebhookConfig(w.getConfig())
+            .masked(key -> formats.isSecret(w.getPayloadFormat(), key)));
     return webhook;
   }
 
@@ -155,22 +145,21 @@ public class WebhooksResource extends AbstractAdminResource {
   @GET
   @Path("formats")
   @Produces(MediaType.APPLICATION_JSON)
-  public Stream<Map<String, Object>> getPayloadFormats() {
+  public Stream<PayloadFormatRepresentation> getPayloadFormats() {
     permissions.realm().requireViewEvents();
-    return WebhookPayloadFormatters.getFactories(session.getKeycloakSessionFactory()).stream()
+    return new PayloadFormats(session)
+        .factories()
         .sorted(Comparator.comparing(WebhookPayloadFormatterFactory::getId))
         .map(
-            f -> {
-              Map<String, Object> m = new LinkedHashMap<>();
-              m.put("id", f.getId());
-              m.put("helpText", f.getHelpText());
-              m.put(
-                  "properties",
-                  f.getConfigProperties().stream()
-                      .map(ModelToRepresentation::toRepresentation)
-                      .toList());
-              return m;
-            });
+            f ->
+                PayloadFormatRepresentation.builder()
+                    .id(f.getId())
+                    .helpText(f.getHelpText())
+                    .properties(
+                        f.getConfigProperties().stream()
+                            .map(ModelToRepresentation::toRepresentation)
+                            .toList())
+                    .build());
   }
 
   @GET
@@ -341,6 +330,21 @@ public class WebhooksResource extends AbstractAdminResource {
   }
 
   private void mergeWebhook(WebhookRepresentation rep, WebhookModel w) {
+    String authType = authTypeOf(rep);
+    // null leaves the format unchanged; an empty string resets it to the server default
+    String payloadFormat = w.getPayloadFormat();
+    if (rep.getPayloadFormat() != null) {
+      payloadFormat = "".equals(rep.getPayloadFormat()) ? null : rep.getPayloadFormat();
+    }
+    WebhookConfig config = new WebhookConfig(w.getConfig()).merge(rep.getConfig());
+    // validate before changing anything
+    try {
+      new PayloadFormats(session).validate(payloadFormat, config.asMap());
+      config.validateFor(authType);
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestException(e.getMessage());
+    }
+
     w.setUrl(rep.getUrl());
     w.setEnabled(rep.isEnabled());
     if (rep.getEventTypes() != null) {
@@ -349,16 +353,6 @@ public class WebhooksResource extends AbstractAdminResource {
     }
     if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
       w.setSecret(rep.getSecret());
-    }
-    // Authentication is one of: none, hmac, or bearer (JWT). When not specified, preserve the
-    // historical behavior: a secret implies HMAC signing, otherwise the webhook is unauthenticated.
-    String authType;
-    if (rep.getAuthType() != null && !"".equals(rep.getAuthType())) {
-      authType = rep.getAuthType().toLowerCase();
-    } else if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
-      authType = WebhookModel.AUTH_TYPE_HMAC;
-    } else {
-      authType = WebhookModel.AUTH_TYPE_NONE;
     }
     w.setAuthType(authType);
     if (rep.getAlgorithm() != null && !"".equals(rep.getAlgorithm())) {
@@ -371,41 +365,22 @@ public class WebhooksResource extends AbstractAdminResource {
     if (rep.getAudience() != null && !"".equals(rep.getAudience())) {
       w.setAudience(rep.getAudience());
     }
-    // null leaves the format unchanged; an empty string resets it to the server default
-    String payloadFormat = w.getPayloadFormat();
-    if (rep.getPayloadFormat() != null) {
-      payloadFormat = "".equals(rep.getPayloadFormat()) ? null : rep.getPayloadFormat();
-    }
-    Map<String, String> config = mergeConfig(w.getConfig(), rep.getConfig());
-    try {
-      WebhookPayloadFormatters.validate(session.getKeycloakSessionFactory(), payloadFormat, config);
-      WebhookAuthConfig.validate(authType, config);
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestException(e.getMessage());
-    }
     w.setPayloadFormat(payloadFormat);
-    w.setConfig(config);
+    w.setConfig(config.asMap());
   }
 
   /**
-   * A null incoming config leaves the stored config unchanged. Otherwise the incoming map replaces
-   * it, except that masked secret values keep their stored value, so a representation read from
-   * the API can be sent back unchanged.
+   * The auth type a representation asks for: none, hmac, bearer (JWT), headers or
+   * oauth2-client-credentials. When not specified, preserve the historical behavior: a secret
+   * implies HMAC signing, otherwise the webhook is unauthenticated.
    */
-  static Map<String, String> mergeConfig(Map<String, String> stored, Map<String, String> incoming) {
-    Map<String, String> current = stored == null ? Map.of() : stored;
-    if (incoming == null) return new HashMap<>(current);
-    Map<String, String> merged = new HashMap<>();
-    incoming.forEach(
-        (k, v) -> {
-          if (k == null || v == null) return;
-          if (WebhookPayloadFormatters.SECRET_MASK.equals(v)) {
-            if (current.containsKey(k)) merged.put(k, current.get(k));
-          } else {
-            merged.put(k, v);
-          }
-        });
-    return merged;
+  private String authTypeOf(WebhookRepresentation rep) {
+    if (rep.getAuthType() != null && !"".equals(rep.getAuthType())) {
+      return rep.getAuthType().toLowerCase();
+    } else if (rep.getSecret() != null && !"".equals(rep.getSecret())) {
+      return WebhookModel.AUTH_TYPE_HMAC;
+    }
+    return WebhookModel.AUTH_TYPE_NONE;
   }
 
   @DELETE
